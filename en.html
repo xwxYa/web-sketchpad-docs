@@ -1,0 +1,3636 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <title>Web Sketchpad Grammar Reference</title>
+  
+  <script>
+    (function () {
+      var isLocal = window.location.protocol === "file:";
+      var localUrls = ["engine/jquery-2.1.0.min.js", "engine/wsp-min.js", "engine/wsp-runner.js"];
+      var remoteUrls = [
+        "https://sineofthetimes.org/includes/v4.6/js/jquery-2.1.0.js",
+        "https://sineofthetimes.org/includes/v4.6/js/wsp.js",
+        "https://sineofthetimes.org/includes/v4.6/js/wsp-runner.js"
+      ];
+      window.__WSP_ENGINE_READY__ = false;
+      window.__WSP_ON_READY_QUEUE__ = [];
+      window.whenWspEngineReady = function (fn) {
+        if (window.__WSP_ENGINE_READY__ && window.jQuery && jQuery.fn && jQuery.fn.WSP) {
+          fn();
+        } else {
+          window.__WSP_ON_READY_QUEUE__.push(fn);
+        }
+      };
+      function loadSeq(urls, idx, onFail) {
+        if (idx >= urls.length) {
+          window.__WSP_ENGINE_READY__ = true;
+          var q = window.__WSP_ON_READY_QUEUE__.splice(0);
+          q.forEach(function (fn) { try { fn(); } catch (e) {} });
+          return;
+        }
+        var s = document.createElement("script");
+        s.src = urls[idx];
+        s.async = false;
+        s.onload = function () { loadSeq(urls, idx + 1, onFail); };
+        s.onerror = function () {
+          if (onFail) onFail();
+        };
+        document.head.appendChild(s);
+      }
+      if (isLocal) {
+        loadSeq(localUrls, 0, function () { loadSeq(remoteUrls, 0, null); });
+      } else {
+        loadSeq(remoteUrls, 0, null);
+      }
+    })();
+  </script>
+  <script src="wsp-schema-data.js"></script>
+  <style>
+    
+    :root {
+      --bg-canvas: #FCFCFB;
+      --bg-surface: #FFFFFF;
+      --bg-elevated: #F8F8F6;
+      --bg-subtle: rgba(11, 11, 11, 0.045);
+      --bg-hover: rgba(11, 11, 11, 0.075);
+      --text-primary: #0B0B0B;
+      --text-secondary: #4E4D4A;
+      --text-muted: #84827C;
+      --border-hairline: rgba(11, 11, 11, 0.09);
+      --card-shadow: inset 0 0 0 1px rgba(11, 11, 11, 0.09), 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+      --card-shadow-hover: inset 0 0 0 1px rgba(11, 11, 11, 0.20), 0 3px 10px 0 rgba(0, 0, 0, 0.045);
+      --link-blue: #184F95;
+      --syn-kw: #CF222E;
+      --syn-prop: #184F95;
+      --syn-str: #0A3069;
+      --syn-num: #0550AE;
+      --syn-cmt: #84827C;
+      --pill-bg: #F2F1ED;
+      --pill-fg: #4E4D4A;
+      --header-h: 62px;
+      --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --ease-fast: 0.06s cubic-bezier(0.165, 0.84, 0.44, 1);
+    }
+
+    html[data-theme="dark"] {
+      --bg-canvas: #0B0B0B;
+      --bg-surface: #141414;
+      --bg-elevated: #1A1A19;
+      --bg-subtle: rgba(255, 255, 255, 0.06);
+      --bg-hover: rgba(255, 255, 255, 0.10);
+      --text-primary: #F0EFEC;
+      --text-secondary: #C5C4B9;
+      --text-muted: #898781;
+      --border-hairline: rgba(255, 255, 255, 0.10);
+      --card-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.10), 0 1px 2px 0 rgba(0, 0, 0, 0.25);
+      --card-shadow-hover: inset 0 0 0 1px rgba(255, 255, 255, 0.24), 0 4px 14px 0 rgba(0, 0, 0, 0.45);
+      --link-blue: #6DA7EC;
+      --syn-kw: #FF7B72;
+      --syn-prop: #6DA7EC;
+      --syn-str: #CE9178;
+      --syn-num: #79C0FF;
+      --syn-cmt: #78766F;
+      --pill-bg: rgba(255, 255, 255, 0.08);
+      --pill-fg: #C5C4B9;
+    }
+
+    :root { color-scheme: light; }
+    html[data-theme="dark"] { color-scheme: dark; }
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(128, 128, 128, 0.35) transparent;
+    }
+    *::-webkit-scrollbar { width: 6px; height: 6px; }
+    *::-webkit-scrollbar-track { background: transparent; }
+    *::-webkit-scrollbar-thumb {
+      background: rgba(128, 128, 128, 0.32);
+      border-radius: 999px;
+    }
+    *::-webkit-scrollbar-thumb:hover {
+      background: rgba(128, 128, 128, 0.55);
+    }
+    *::-webkit-scrollbar-corner { background: transparent; }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg-canvas);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 16px;
+      line-height: 26px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    svg.icon {
+      width: 17px;
+      height: 17px;
+      stroke: currentColor;
+      stroke-width: 1.65;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      flex-shrink: 0;
+    }
+
+    
+    .global-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      height: var(--header-h);
+      background: var(--bg-canvas);
+      border-bottom: 1px solid var(--border-hairline);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 36px;
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      cursor: pointer;
+      text-decoration: none;
+      color: var(--text-primary);
+    }
+    .geo-emblem {
+      width: 24px;
+      height: 24px;
+      color: var(--text-primary);
+      flex-shrink: 0;
+    }
+    .brand-name {
+      font-size: 16.5px;
+      font-weight: 500;
+      letter-spacing: -0.015em;
+      color: var(--text-primary);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .icon-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background-color var(--ease-fast), color var(--ease-fast);
+    }
+    .icon-btn:hover { background: var(--bg-subtle); color: var(--text-primary); }
+
+    .lang-switch-btn {
+      height: 32px;
+      padding: 0 10px;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color var(--ease-fast), color var(--ease-fast);
+    }
+    .lang-switch-btn:hover { background: var(--bg-subtle); color: var(--text-primary); }
+
+
+    .btn-outline-sm {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 9px;
+      background: var(--bg-surface);
+      color: var(--text-primary);
+      font-size: 15px;
+      font-weight: 500;
+      border: none;
+      box-shadow: var(--card-shadow);
+      cursor: pointer;
+      transition: box-shadow var(--ease-fast), background-color var(--ease-fast);
+      text-decoration: none;
+    }
+    .btn-outline-sm:hover {
+      box-shadow: var(--card-shadow-hover);
+      background: var(--bg-subtle);
+    }
+
+    .btn-solid-sm {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 16px;
+      border-radius: 9px;
+      background: var(--text-primary);
+      color: var(--bg-canvas);
+      font-size: 14.5px;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+      transition: opacity var(--ease-fast);
+    }
+    .btn-solid-sm:hover { opacity: 0.86; }
+
+    
+    .search-box-trigger {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 340px;
+      padding: 9px 12px 9px 14px;
+      border-radius: 9px;
+      background: var(--bg-surface);
+      box-shadow: var(--card-shadow);
+      color: var(--text-muted);
+      font-size: 14.5px;
+      cursor: pointer;
+      transition: box-shadow var(--ease-fast);
+    }
+    .search-box-trigger:hover {
+      box-shadow: var(--card-shadow-hover);
+      color: var(--text-secondary);
+    }
+    .kbd-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .kbd-cap {
+      font-family: var(--font-sans);
+      font-size: 11.5px;
+      font-weight: 500;
+      line-height: 16px;
+      padding: 2px 6px;
+      border-radius: 5px;
+      background: var(--bg-canvas);
+      box-shadow: var(--card-shadow);
+      color: var(--text-muted);
+    }
+
+    
+    .portal-container {
+      width: min(92vw, 1360px);
+      margin: 0 auto;
+      padding: 72px 24px 108px;
+    }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 0.85fr 1.15fr;
+      gap: 64px;
+      align-items: center;
+      margin-bottom: 92px;
+    }
+    .eyebrow {
+      font-size: 13.5px;
+      font-weight: 400;
+      line-height: 20px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+    .hero-title {
+      font-size: 54px;
+      font-weight: 300;
+      line-height: 1.16;
+      letter-spacing: -0.025em;
+      color: var(--text-primary);
+      margin-bottom: 20px;
+    }
+    .hero-subtitle {
+      font-size: 17px;
+      line-height: 28px;
+      color: var(--text-secondary);
+      max-width: 460px;
+      margin-bottom: 28px;
+    }
+    .hero-actions-stack {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 16px;
+    }
+
+    
+    .code-showcase-card {
+      background: var(--bg-surface);
+      border-radius: 13px;
+      box-shadow: var(--card-shadow);
+      overflow: hidden;
+    }
+    .code-showcase-tabs {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border-hairline);
+    }
+    .code-tab-list {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .code-tab-btn {
+      padding: 5px 12px;
+      border-radius: 7px;
+      font-size: 13.5px;
+      font-weight: 400;
+      color: var(--text-muted);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      transition: background-color var(--ease-fast), color var(--ease-fast);
+    }
+    .code-tab-btn:hover { color: var(--text-primary); }
+    .code-tab-btn.active {
+      background: var(--bg-subtle);
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+    .hero-live-canvas-pane {
+      background: #FFFFFF;
+      min-height: 340px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+    }
+    .hero-live-caption {
+      width: 100%;
+      padding: 10px 18px;
+      background: var(--bg-elevated);
+      border-top: 1px solid var(--border-hairline);
+      font-size: 13px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .code-showcase-body {
+      display: none;
+      padding: 20px 24px;
+      font-family: var(--font-mono);
+      font-size: 13.5px;
+      line-height: 21px;
+      color: var(--text-primary);
+      overflow-x: auto;
+      white-space: pre;
+      max-height: 380px;
+      overflow-y: auto;
+    }
+    .syn-k { color: var(--syn-kw); }
+    .syn-p { color: var(--syn-prop); }
+    .syn-s { color: var(--syn-str); }
+    .syn-n { color: var(--syn-num); }
+    .syn-c { color: var(--syn-cmt); font-style: italic; }
+
+    
+    .home-section {
+      margin-bottom: 52px;
+    }
+    .home-section:last-child {
+      margin-bottom: 0;
+    }
+    .home-section-title {
+      font-size: 18px;
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-bottom: 16px;
+      letter-spacing: -0.01em;
+    }
+    .clean-strip-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .strip-card {
+      background: var(--bg-surface);
+      border-radius: 11px;
+      box-shadow: var(--card-shadow);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 15.5px;
+      font-weight: 400;
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: box-shadow var(--ease-fast), background-color var(--ease-fast);
+    }
+    .strip-card:hover {
+      box-shadow: var(--card-shadow-hover);
+      background: var(--bg-subtle);
+    }
+    .strip-card-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .strip-card-left svg.icon {
+      color: var(--text-muted);
+    }
+    .strip-card:hover .strip-card-left svg.icon {
+      color: var(--text-primary);
+    }
+
+    
+    .interior-shell {
+      display: none;
+      grid-template-columns: 296px minmax(0, 1fr);
+      width: 100%;
+      max-width: 1680px;
+      margin: 0 auto;
+      min-height: calc(100vh - var(--header-h));
+    }
+    body.mode-interior .portal-container { display: none; }
+    body.mode-interior .interior-shell { display: grid; }
+
+    
+    .docs-sidebar {
+      position: sticky;
+      top: var(--header-h);
+      height: calc(100vh - var(--header-h));
+      overflow-y: auto;
+      border-right: 1px solid var(--border-hairline);
+      padding: 24px 18px 48px 24px;
+    }
+    .docs-sidebar .search-box-trigger {
+      max-width: 100%;
+      margin-bottom: 24px;
+    }
+    .sidebar-group {
+      margin-bottom: 24px;
+    }
+    .sidebar-group-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      padding: 0 12px 8px;
+      line-height: 18px;
+    }
+    .sidebar-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 12px;
+      border-radius: 8px;
+      font-size: 14.5px;
+      line-height: 21px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: background-color var(--ease-fast), color var(--ease-fast);
+      margin-bottom: 2px;
+    }
+    .sidebar-item:hover {
+      background: var(--bg-subtle);
+      color: var(--text-primary);
+    }
+    .sidebar-item.active {
+      background: var(--bg-subtle);
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    
+    .docs-main {
+      padding: 48px 80px 110px;
+      max-width: 1120px;
+      width: 100%;
+    }
+    .docs-breadcrumb {
+      font-size: 13.5px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .docs-title-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 16px;
+    }
+    .docs-h1 {
+      font-size: 34px;
+      font-weight: 400;
+      line-height: 1.24;
+      letter-spacing: -0.015em;
+      color: var(--text-primary);
+    }
+    .copy-page-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 13px;
+      border-radius: 8px;
+      background: var(--bg-surface);
+      box-shadow: var(--card-shadow);
+      font-size: 13.5px;
+      color: var(--text-secondary);
+      border: none;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: box-shadow var(--ease-fast), color var(--ease-fast);
+    }
+    .copy-page-btn:hover {
+      box-shadow: var(--card-shadow-hover);
+      color: var(--text-primary);
+    }
+
+    .docs-lead {
+      font-size: 16.5px;
+      line-height: 27px;
+      color: var(--text-secondary);
+      margin-bottom: 28px;
+    }
+
+    .hairline-callout {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 15px 18px;
+      border-radius: 10px;
+      background: var(--bg-surface);
+      box-shadow: var(--card-shadow);
+      font-size: 14.5px;
+      line-height: 23px;
+      color: var(--text-secondary);
+      margin: 20px 0 28px;
+    }
+    .hairline-callout strong { color: var(--text-primary); font-weight: 500; }
+    .hairline-callout a {
+      color: var(--link-blue);
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      cursor: pointer;
+    }
+
+    
+    .inline-live-demo {
+      background: var(--bg-surface);
+      border-radius: 12px;
+      box-shadow: var(--card-shadow);
+      overflow: hidden;
+      margin: 20px 0 32px;
+    }
+    .inline-live-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border-hairline);
+      font-size: 13.5px;
+      color: var(--text-muted);
+    }
+    .inline-live-stage {
+      background: #FFFFFF;
+      padding: 14px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 320px;
+      overflow-x: auto;
+    }
+    .engine-missing-note {
+      padding: 36px 24px;
+      text-align: center;
+      color: #52514E;
+      font-size: 14.5px;
+      line-height: 24px;
+    }
+
+    h2.doc-h2 {
+      font-size: 22px;
+      font-weight: 500;
+      line-height: 30px;
+      letter-spacing: -0.01em;
+      color: var(--text-primary);
+      margin: 38px 0 14px;
+    }
+    p.doc-p {
+      font-size: 16px;
+      line-height: 26px;
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+    }
+    p.doc-p strong { color: var(--text-primary); font-weight: 500; }
+    p.doc-p a { color: var(--link-blue); text-decoration: underline; text-underline-offset: 3px; }
+    p.doc-p a code.ic { color: var(--link-blue); }
+
+    
+    .table-box {
+      border-radius: 11px;
+      background: var(--bg-surface);
+      box-shadow: var(--card-shadow);
+      overflow-x: auto;
+      margin: 18px 0 28px;
+    }
+    table.clean-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14.5px;
+      line-height: 22px;
+    }
+    table.clean-table th {
+      text-align: left;
+      padding: 13px 18px;
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+      font-weight: 500;
+      border-bottom: 1px solid var(--border-hairline);
+    }
+    table.clean-table td {
+      padding: 13px 18px;
+      border-bottom: 1px solid var(--border-hairline);
+      color: var(--text-secondary);
+      vertical-align: top;
+    }
+    table.clean-table tr:last-child td { border-bottom: none; }
+    table.clean-table td:first-child { color: var(--text-primary); font-weight: 500; white-space: nowrap; }
+
+    
+    .doc-code-card {
+      background: var(--bg-surface);
+      border-radius: 12px;
+      box-shadow: var(--card-shadow);
+      overflow: hidden;
+      margin: 16px 0 28px;
+    }
+    .doc-code-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 16px;
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border-hairline);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .doc-code-pre {
+      padding: 18px 22px;
+      font-family: var(--font-mono);
+      font-size: 14px;
+      line-height: 22px;
+      color: var(--text-primary);
+      overflow-x: auto;
+      margin: 0;
+    }
+    code.ic {
+      font-family: var(--font-mono);
+      font-size: 13.5px;
+      padding: 2px 6px;
+      border-radius: 5px;
+      background: var(--bg-subtle);
+      color: var(--text-primary);
+    }
+
+    
+    .filter-pills-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 16px 0 20px;
+    }
+    .cat-pill {
+      padding: 6px 13px;
+      border-radius: 8px;
+      font-size: 13.5px;
+      background: var(--bg-surface);
+      color: var(--text-secondary);
+      border: none;
+      box-shadow: var(--card-shadow);
+      cursor: pointer;
+      transition: all var(--ease-fast);
+    }
+    .cat-pill:hover { color: var(--text-primary); box-shadow: var(--card-shadow-hover); }
+    .cat-pill.active {
+      background: var(--text-primary);
+      color: var(--bg-canvas);
+      font-weight: 500;
+    }
+    .dict-search-input {
+      width: 100%;
+      padding: 11px 16px;
+      border-radius: 9px;
+      border: none;
+      background: var(--bg-surface);
+      box-shadow: var(--card-shadow);
+      color: var(--text-primary);
+      font-size: 15px;
+      outline: none;
+    }
+    .dict-search-input:focus { box-shadow: var(--card-shadow-hover); }
+    .c-item-card {
+      background: var(--bg-surface);
+      border-radius: 12px;
+      box-shadow: var(--card-shadow);
+      padding: 18px 22px;
+      margin-bottom: 12px;
+    }
+    .c-item-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .c-item-title {
+      font-family: var(--font-mono);
+      font-size: 15.5px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+    .trait-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .trait-pill {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 16px;
+      padding: 2px 7px;
+      border-radius: 5px;
+      background: var(--pill-bg);
+      color: var(--pill-fg);
+    }
+
+    
+    .docs-main.is-playground {
+      max-width: 1380px;
+      padding: 40px 56px 96px;
+    }
+    .pg-workbench {
+      background: var(--bg-surface);
+      border-radius: 12px;
+      box-shadow: var(--card-shadow);
+      overflow: hidden;
+      margin-top: 18px;
+    }
+    .pg-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding: 10px 16px;
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border-hairline);
+    }
+    .pg-toolbar-left, .pg-toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .pg-select-label {
+      font-size: 13.5px;
+      color: var(--text-muted);
+    }
+    .pg-select {
+      appearance: none;
+      background: var(--bg-surface);
+      color: var(--text-primary);
+      border: none;
+      box-shadow: var(--card-shadow);
+      border-radius: 8px;
+      padding: 6px 28px 6px 12px;
+      font-family: var(--font-sans);
+      font-size: 13.5px;
+      font-weight: 500;
+      cursor: pointer;
+      outline: none;
+      background-image: linear-gradient(45deg, transparent 50%, var(--text-muted) 50%), linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
+      background-position: calc(100% - 14px) 52%, calc(100% - 9px) 52%;
+      background-size: 5px 5px, 5px 5px;
+      background-repeat: no-repeat;
+    }
+    .pg-select:hover { box-shadow: var(--card-shadow-hover); }
+    .pg-split {
+      display: grid;
+      grid-template-columns: minmax(340px, 42%) minmax(0, 58%);
+      min-height: 520px;
+    }
+    .pg-editor-pane {
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border-hairline);
+      background: var(--bg-surface);
+    }
+    .pg-pane-head {
+      padding: 8px 16px;
+      font-size: 12.5px;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-hairline);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-canvas);
+    }
+    .playground-textarea {
+      flex: 1;
+      width: 100%;
+      min-height: 450px;
+      background: transparent;
+      color: var(--text-primary);
+      border: none;
+      padding: 16px 18px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 20px;
+      resize: none;
+      outline: none;
+      tab-size: 2;
+    }
+    .pg-statusbar {
+      padding: 8px 16px;
+      font-size: 12.5px;
+      color: var(--text-secondary);
+      border-top: 1px solid var(--border-hairline);
+      background: var(--bg-elevated);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .pg-stage-pane {
+      background: #FFFFFF;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .pg-stage-canvas-wrap {
+      flex: 1;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: auto;
+    }
+
+    
+    .modal-mask {
+      position: fixed;
+      inset: 0;
+      background: rgba(11, 11, 11, 0.42);
+      z-index: 999;
+      display: none;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 88px;
+    }
+    .modal-mask.open { display: flex; }
+    .modal-box {
+      width: 92%;
+      max-width: 600px;
+      background: var(--bg-surface);
+      border-radius: 13px;
+      box-shadow: var(--card-shadow-hover);
+      overflow: hidden;
+    }
+    .modal-input {
+      width: 100%;
+      padding: 16px 20px;
+      border: none;
+      border-bottom: 1px solid var(--border-hairline);
+      background: transparent;
+      color: var(--text-primary);
+      font-size: 16px;
+      outline: none;
+    }
+    .modal-list {
+      max-height: 390px;
+      overflow-y: auto;
+      padding: 8px;
+    }
+    .modal-row {
+      padding: 10px 14px;
+      border-radius: 9px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .modal-row:hover { background: var(--bg-subtle); }
+
+    
+    .diagram-card {
+      background: var(--bg-surface);
+      border-radius: 12px;
+      box-shadow: var(--card-shadow);
+      overflow: hidden;
+      margin: 20px 0 30px;
+    }
+    .diagram-card-head {
+      padding: 9px 16px;
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border-hairline);
+      font-size: 13px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .diagram-card-body {
+      padding: 24px 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow-x: auto;
+    }
+    .diagram-card-body svg {
+      max-width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    
+    .sketch_canvas {
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      contain: layout style paint;
+      will-change: transform;
+    }
+    .sketch_canvas .wsp-text-layer,
+    .sketch_canvas .wsp-text-layer > div {
+      contain: layout style;
+    }
+
+    
+    .doc-pager {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 52px;
+      padding-top: 28px;
+      border-top: 1px solid var(--border-hairline);
+    }
+    .pager-card {
+      background: var(--bg-surface);
+      border-radius: 10px;
+      box-shadow: var(--card-shadow);
+      padding: 14px 18px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      transition: box-shadow var(--ease-fast), background-color var(--ease-fast);
+    }
+    .pager-card:hover {
+      box-shadow: var(--card-shadow-hover);
+      background: var(--bg-subtle);
+    }
+    .pager-card.next { text-align: right; align-items: flex-end; }
+    .pager-dir { font-size: 12.5px; color: var(--text-muted); }
+    .pager-title { font-size: 15px; font-weight: 500; color: var(--text-primary); }
+
+    .mobile-menu-btn {
+      display: none;
+      margin-right: 4px;
+      flex-shrink: 0;
+    }
+    .mobile-drawer-mask {
+      display: none;
+      position: fixed;
+      inset: var(--header-h) 0 0 0;
+      background: rgba(11, 11, 11, 0.42);
+      z-index: 190;
+    }
+    .mobile-drawer-mask.open { display: block; }
+
+    .docs-main, .portal-container, .hero-grid > *, .code-showcase-card, .pg-workbench, .pg-split > *, .pg-editor-pane, .pg-stage-pane {
+      min-width: 0;
+    }
+    code.ic, .c-item-title {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    .code-tab-btn, .pg-select-label, .pg-toolbar button {
+      white-space: nowrap;
+    }
+
+    @media (max-width: 1080px) {
+      .hero-grid, .clean-strip-grid, .pg-split { grid-template-columns: minmax(0, 1fr); }
+      .docs-main, .docs-main.is-playground { padding: 32px 28px 80px; }
+      .pg-editor-pane { border-right: none; border-bottom: 1px solid var(--border-hairline); }
+    }
+    @media (max-width: 780px) {
+      .global-header {
+        padding: 0 14px;
+        gap: 8px;
+      }
+      .header-left {
+        gap: 8px;
+        min-width: 0;
+      }
+      .brand-name {
+        font-size: 15px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .header-right {
+        gap: 4px;
+        flex-shrink: 0;
+      }
+      body.mode-interior .mobile-menu-btn {
+        display: inline-flex;
+      }
+
+      .portal-container {
+        width: 100%;
+        padding: 32px 16px 72px;
+      }
+      .hero-grid {
+        gap: 32px;
+        margin-bottom: 52px;
+      }
+      .hero-title {
+        font-size: 36px;
+        line-height: 1.2;
+        margin-bottom: 14px;
+      }
+      .hero-subtitle {
+        font-size: 15.5px;
+        line-height: 25px;
+        margin-bottom: 22px;
+      }
+      .search-box-trigger {
+        max-width: 100%;
+      }
+      .code-showcase-tabs {
+        padding: 8px 10px;
+        gap: 6px;
+      }
+      .code-tab-list {
+        gap: 4px;
+        overflow-x: auto;
+        scrollbar-width: none;
+      }
+      .code-tab-btn {
+        padding: 5px 9px;
+        font-size: 12.5px;
+      }
+      .hero-live-canvas-pane,
+      .inline-live-stage,
+      .pg-stage-canvas-wrap {
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+        min-height: 0;
+        padding: 8px;
+      }
+      .hero-live-caption,
+      .inline-live-bar {
+        padding: 9px 12px;
+        font-size: 12.5px;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .strip-card {
+        padding: 14px 15px;
+        font-size: 15px;
+      }
+
+      .interior-shell {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .docs-sidebar {
+        display: block;
+        position: fixed;
+        top: var(--header-h);
+        left: 0;
+        bottom: 0;
+        width: min(82vw, 300px);
+        height: calc(100vh - var(--header-h));
+        background: var(--bg-canvas);
+        z-index: 200;
+        transform: translateX(-105%);
+        transition: transform 0.2s cubic-bezier(0.165, 0.84, 0.44, 1);
+        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.14);
+        padding: 18px 14px 48px 16px;
+      }
+      .docs-sidebar.mobile-open {
+        transform: translateX(0);
+      }
+      .docs-main,
+      .docs-main.is-playground {
+        padding: 20px 16px 64px;
+        max-width: 100%;
+      }
+      .docs-title-row {
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+      }
+      .docs-h1 {
+        font-size: 26px;
+        line-height: 1.28;
+      }
+      .copy-page-btn {
+        padding: 6px 11px;
+        font-size: 12.5px;
+      }
+      .docs-lead {
+        font-size: 15px;
+        line-height: 24px;
+        margin-bottom: 20px;
+      }
+      h2.doc-h2 {
+        font-size: 19px;
+        line-height: 27px;
+        margin: 28px 0 12px;
+      }
+      p.doc-p {
+        font-size: 15px;
+        line-height: 24px;
+      }
+      .hairline-callout {
+        padding: 12px 14px;
+        font-size: 14px;
+        line-height: 22px;
+        gap: 10px;
+      }
+      table.clean-table {
+        font-size: 13.5px;
+        line-height: 20px;
+      }
+      table.clean-table th,
+      table.clean-table td {
+        padding: 10px 12px;
+      }
+      table.clean-table td:first-child {
+        white-space: normal;
+        min-width: 84px;
+      }
+      .doc-code-pre {
+        padding: 14px;
+        font-size: 13px;
+        line-height: 20px;
+      }
+      .c-item-card {
+        padding: 14px 15px;
+      }
+      .pg-toolbar {
+        padding: 10px 12px;
+        gap: 10px;
+      }
+      .pg-toolbar-left {
+        width: 100%;
+      }
+      .pg-select {
+        flex: 1;
+        min-width: 0;
+        width: 100%;
+      }
+      .pg-toolbar-right {
+        width: 100%;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .pg-toolbar-right .btn-outline-sm,
+      .pg-toolbar-right .btn-solid-sm {
+        padding: 7px 12px;
+        font-size: 13.5px;
+      }
+      .playground-textarea {
+        min-height: 260px;
+        padding: 12px 14px;
+        font-size: 12.5px;
+      }
+      .pg-split {
+        min-height: 0;
+      }
+      .doc-pager {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 10px;
+        margin-top: 36px;
+        padding-top: 20px;
+      }
+      .pager-card.next {
+        text-align: left;
+        align-items: flex-start;
+      }
+      .site-footer-note {
+        margin-top: 44px;
+        font-size: 12px;
+        line-height: 19px;
+      }
+    }
+
+    .site-footer-note {
+      margin-top: 64px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border-hairline);
+      font-size: 12.5px;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+  
+    /* === Motion Studies Micro-Interactions === */
+    :root {
+      --spring-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
+      --spring-settle: cubic-bezier(0.22, 1, 0.36, 1);
+      --spring-soft: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .icon-btn, .lang-switch-btn, .btn-solid-sm, .btn-outline-sm, .copy-page-btn {
+      transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease, box-shadow 0.2s ease, transform 0.22s var(--spring-pop);
+    }
+    .icon-btn:active, .lang-switch-btn:active, .btn-solid-sm:active, .btn-outline-sm:active, .copy-page-btn:active {
+      transform: scale(0.94);
+    }
+    .icon-btn.is-copied {
+      color: #16a34a !important;
+      background: rgba(22, 163, 74, 0.10) !important;
+    }
+    [data-theme="dark"] .icon-btn.is-copied {
+      color: #4ade80 !important;
+      background: rgba(74, 222, 128, 0.14) !important;
+    }
+    .icon-btn.is-copied svg, .copy-page-btn.is-copied svg {
+      animation: wspCheckPop 0.34s var(--spring-pop);
+    }
+    .copy-page-btn.is-copied {
+      color: #16a34a !important;
+      border-color: rgba(22, 163, 74, 0.35) !important;
+    }
+    [data-theme="dark"] .copy-page-btn.is-copied {
+      color: #4ade80 !important;
+      border-color: rgba(74, 222, 128, 0.35) !important;
+    }
+    @keyframes wspCheckPop {
+      0% { transform: scale(0.45) rotate(-14deg); opacity: 0; }
+      65% { transform: scale(1.16) rotate(4deg); opacity: 1; }
+      100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+    .btn-solid-sm.is-run-ok {
+      background: #15803d !important;
+      color: #ffffff !important;
+      transform: scale(1.02);
+    }
+    .btn-solid-sm.is-run-err {
+      background: #dc2626 !important;
+      color: #ffffff !important;
+      animation: wspShakeX 0.36s var(--spring-settle);
+    }
+    @keyframes wspShakeX {
+      0%, 100% { transform: translateX(0); }
+      22% { transform: translateX(-4px); }
+      48% { transform: translateX(4px); }
+      74% { transform: translateX(-2px); }
+    }
+    .filter-pills-row {
+      position: relative;
+    }
+    .pill-slider-bg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      border-radius: 8px;
+      background: var(--text-primary);
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0;
+      transition: transform 0.36s var(--spring-settle), width 0.36s var(--spring-settle), height 0.28s var(--spring-settle), opacity 0.18s ease;
+      will-change: transform, width;
+    }
+    .cat-pill {
+      position: relative;
+      z-index: 1;
+      transition: color 0.2s ease, box-shadow 0.2s ease, transform 0.2s var(--spring-pop), background-color 0.2s ease;
+    }
+    .cat-pill:active { transform: scale(0.95); }
+    .filter-pills-row.has-slider .cat-pill.active {
+      background: transparent !important;
+      box-shadow: none !important;
+      color: var(--bg-canvas);
+    }
+    .modal-mask {
+      display: flex !important;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      backdrop-filter: blur(0px);
+      -webkit-backdrop-filter: blur(0px);
+      transition: opacity 0.22s var(--spring-soft), visibility 0.22s, backdrop-filter 0.24s ease;
+    }
+    .modal-mask.open {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+    }
+    .modal-box {
+      opacity: 0;
+      transform: translateY(-10px) scale(0.97);
+      transition: transform 0.28s var(--spring-settle), opacity 0.2s ease;
+      will-change: transform, opacity;
+    }
+    .modal-mask.open .modal-box {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    .modal-row {
+      transition: background-color 0.14s ease, transform 0.18s var(--spring-settle);
+    }
+    .modal-row:hover, .modal-row.is-selected {
+      background: var(--bg-subtle);
+    }
+    .modal-row:active {
+      transform: scale(0.99);
+    }
+    .morph-tooltip {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 1200;
+      pointer-events: none;
+      padding: 5px 10px;
+      border-radius: 7px;
+      font-family: var(--font-sans);
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 1.3;
+      white-space: nowrap;
+      background: var(--text-primary);
+      color: var(--bg-canvas);
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.16);
+      opacity: 0;
+      transform: translate3d(0, 0, 0) scale(0.92);
+      transition: transform 0.24s var(--spring-settle), opacity 0.16s ease, width 0.22s var(--spring-settle);
+      will-change: transform, opacity;
+    }
+    .morph-tooltip.visible {
+      opacity: 1;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .pill-slider-bg, .modal-mask, .modal-box, .morph-tooltip,
+      .icon-btn, .lang-switch-btn, .btn-solid-sm, .cat-pill {
+        transition: none !important;
+        animation: none !important;
+      }
+    }
+
+  </style>
+</head>
+<body>
+
+  
+  <svg style="display:none" aria-hidden="true">
+    <symbol id="ic-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+    <symbol id="ic-book" viewBox="0 0 24 24"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></symbol>
+    <symbol id="ic-code" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></symbol>
+    <symbol id="ic-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+    <symbol id="ic-terminal" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></symbol>
+    <symbol id="ic-layers" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></symbol>
+    <symbol id="ic-compass" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><path d="m10.5 6.8-5.5 14.2M13.5 6.8l5.5 14.2M7 15h10"/></symbol>
+    <symbol id="ic-play" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></symbol>
+    <symbol id="ic-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></symbol>
+    <symbol id="ic-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+    <symbol id="ic-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></symbol>
+    <symbol id="ic-arrow-right" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></symbol>
+    <symbol id="ic-menu" viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></symbol>
+    <symbol id="ic-sliders" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></symbol>
+    <symbol id="ic-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
+    <symbol id="ic-github" viewBox="0 0 24 24"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></symbol>
+  </svg>
+
+  
+  <header class="global-header">
+    <div style="display:flex;align-items:center;min-width:0;">
+      <button class="icon-btn mobile-menu-btn" onclick="toggleMobileDrawer()" title="Open menu" aria-label="Open menu">
+        <svg class="icon"><use href="#ic-menu"/></svg>
+      </button>
+      <a class="header-left" onclick="openHomePortal()">
+      <svg class="geo-emblem" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+        
+        <path d="M 6 22 L 14 5 L 22 22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M 8.5 16.5 A 7.5 7.5 0 0 0 19.5 16.5" stroke="#184F95" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="14" cy="5.5" r="2.6" fill="#D63628"/>
+        <circle cx="6" cy="22" r="2" fill="currentColor"/>
+        <circle cx="22" cy="22" r="2" fill="currentColor"/>
+      </svg>
+      <span class="brand-name">Web Sketchpad Docs</span>
+      </a>
+    </div>
+
+    <div class="header-right">
+      <button class="lang-switch-btn" onclick="switchLanguage('index.html')" title="切换到中文">CN</button>
+      <a class="icon-btn" href="https://github.com/xwxYa/web-sketchpad-docs" target="_blank" rel="noopener noreferrer" title="GitHub Repository" aria-label="GitHub Repository" style="text-decoration:none">
+        <svg class="icon"><use href="#ic-github"/></svg>
+      </a>
+      <button class="icon-btn" onclick="openSearchModal()" title="Search">
+        <svg class="icon"><use href="#ic-search"/></svg>
+      </button>
+      <button class="icon-btn" onclick="toggleTheme()" id="themeToggleBtn" title="Toggle light/dark theme">
+        <svg class="icon" id="themeIconUse"><use href="#ic-moon"/></svg>
+      </button>
+    </div>
+  </header>
+
+  
+  <div class="portal-container" id="portalView">
+    
+    <section class="hero-grid">
+      <div>
+        <div class="eyebrow">Web Sketchpad Reference</div>
+        <h1 class="hero-title">Start building with<br>Web Sketch</h1>
+        <p class="hero-subtitle">Describe points, lines, circles, functions, and geometric transforms in declarative JSON to render interactive dynamic geometry directly in the browser.</p>
+
+        <div class="hero-actions-stack">
+          <div class="search-box-trigger" onclick="openSearchModal()">
+            <span style="display:inline-flex;align-items:center;gap:9px;">
+              <svg class="icon"><use href="#ic-search"/></svg>
+              <span>Search syntax, kinds, or constraints...</span>
+            </span>
+            <span class="kbd-group">
+              <span class="kbd-cap">Ctrl</span>
+              <span class="kbd-cap">K</span>
+            </span>
+          </div>
+
+          <button class="btn-outline-sm" onclick="openInteriorPage('quickstart')">
+            <svg class="icon"><use href="#ic-book"/></svg>
+            <span>Quickstart</span>
+          </button>
+        </div>
+      </div>
+
+      
+      <div class="code-showcase-card">
+        <div class="code-showcase-tabs">
+          <div class="code-tab-list">
+            <button class="code-tab-btn active" onclick="switchHeroCodeTab('live', this)">Live Canvas</button>
+            <button class="code-tab-btn" onclick="switchHeroCodeTab('json', this)">Skeleton</button>
+            <button class="code-tab-btn" onclick="switchHeroCodeTab('html', this)">HTML Embed</button>
+          </div>
+          <button class="icon-btn" onclick="copyHeroCode()" id="heroCopyBtn" title="Copy code" style="width:30px;height:30px;">
+            <svg class="icon"><use href="#ic-copy"/></svg>
+          </button>
+        </div>
+        <div id="heroLivePane">
+          <div class="hero-live-canvas-pane">
+            <div id="heroLiveMount"></div>
+          </div>
+          <div class="hero-live-caption">
+            <span>Drag the red vertices A, B, or C to see live constraint recalculation</span>
+            <span style="font-family:var(--font-mono);">Q4 2026</span>
+          </div>
+        </div>
+        <div class="code-showcase-body" id="heroCodeBody"></div>
+      </div>
+    </section>
+
+    
+    <section class="home-section">
+      <div class="home-section-title">Fundamentals & Data Model</div>
+      <div class="clean-strip-grid">
+        <div class="strip-card" onclick="openInteriorPage('quickstart')">
+          <div class="strip-card-left"><svg class="icon"><use href="#ic-code"/></svg><span>Minimal Document Skeleton</span></div>
+          <svg class="icon" style="color:var(--text-muted);width:15px;height:15px;"><use href="#ic-arrow-right"/></svg>
+        </div>
+        <div class="strip-card" onclick="openInteriorPage('architecture')">
+          <div class="strip-card-left"><svg class="icon"><use href="#ic-layers"/></svg><span>Document Structure & Quadruple Model</span></div>
+          <svg class="icon" style="color:var(--text-muted);width:15px;height:15px;"><use href="#ic-arrow-right"/></svg>
+        </div>
+        <div class="strip-card" onclick="openInteriorPage('coordinates')">
+          <div class="strip-card-left"><svg class="icon"><use href="#ic-compass"/></svg><span>Pixel Coordinates & Units</span></div>
+          <svg class="icon" style="color:var(--text-muted);width:15px;height:15px;"><use href="#ic-arrow-right"/></svg>
+        </div>
+        <div class="strip-card" onclick="openInteriorPage('styles')">
+          <div class="strip-card-left"><svg class="icon"><use href="#ic-book"/></svg><span>Visual Styles & Layers</span></div>
+          <svg class="icon" style="color:var(--text-muted);width:15px;height:15px;"><use href="#ic-arrow-right"/></svg>
+        </div>
+        <div class="strip-card" onclick="openInteriorPage('troubleshooting')">
+          <div class="strip-card-left"><svg class="icon"><use href="#ic-info"/></svg><span>Validation & Diagnostics</span></div>
+          <svg class="icon" style="color:var(--text-muted);width:15px;height:15px;"><use href="#ic-arrow-right"/></svg>
+        </div>
+        <div class="strip-card" onclick="openInteriorPage('intro')">
+          <div class="strip-card-left"><svg class="icon"><use href="#ic-terminal"/></svg><span>Architecture Overview</span></div>
+          <svg class="icon" style="color:var(--text-muted);width:15px;height:15px;"><use href="#ic-arrow-right"/></svg>
+        </div>
+      </div>
+    </section>
+
+    <section class="home-section">
+      <div class="home-section-title">Construction Guides</div>
+      <div class="clean-strip-grid">
+        <div class="strip-card" onclick="openInteriorPage('guide-euclidean')">
+          <div class="strip-card-left"><svg class="icon"><use href="#ic-compass"/></svg><span>Points, Lines & Intersections</span></div>
+          <svg class="icon" style="color:var(--text-muted);width:15px;height:15px;"><use href="#ic-arrow-right"/></svg>
+        </div>
+        <div class="strip-card" onclick="openInteriorPage('guide-shapes')">
+          <div class="strip-card-left"><svg class="icon"><use href="#ic-layers"/></svg><span>Circles, Arcs, Polygons & Markers</span></div>
+          <svg class="icon" style="color:var(--text-muted);width:15px;height:15px;"><use href="#ic-arrow-right"/></svg>
+        </div>
+        <div class="strip-card" onclick="openInteriorPage('guide-measures')">
+          <div class="strip-card-left"><svg class="icon"><use href="#ic-terminal"/></svg><span>Measures & Expressions</span></div>
+          <svg class="icon" style="color:var(--text-muted);width:15px;height:15px;"><use href="#ic-arrow-right"/></svg>
+        </div>
+        <div class="strip-card" onclick="openInteriorPage('guide-functions')">
+          <div class="strip-card-left"><svg class="icon"><use href="#ic-code"/></svg><span>Coordinate Systems, Functions & Intersections</span></div>
+          <svg class="icon" style="color:var(--text-muted);width:15px;height:15px;"><use href="#ic-arrow-right"/></svg>
+        </div>
+        <div class="strip-card" onclick="openInteriorPage('guide-transforms')">
+          <div class="strip-card-left"><svg class="icon"><use href="#ic-compass"/></svg><span>Transforms & Fractal Iteration</span></div>
+          <svg class="icon" style="color:var(--text-muted);width:15px;height:15px;"><use href="#ic-arrow-right"/></svg>
+        </div>
+        <div class="strip-card" onclick="openInteriorPage('guide-buttons')">
+          <div class="strip-card-left"><svg class="icon"><use href="#ic-play"/></svg><span>Action Buttons & Animation</span></div>
+          <svg class="icon" style="color:var(--text-muted);width:15px;height:15px;"><use href="#ic-arrow-right"/></svg>
+        </div>
+      </div>
+    </section>
+
+    <section class="home-section">
+      <div class="home-section-title">Web Integration & Advanced</div>
+      <div class="clean-strip-grid">
+        <div class="strip-card" onclick="openInteriorPage('web-widgets')">
+          <div class="strip-card-left"><svg class="icon"><use href="#ic-sliders"/></svg><span>Embedding & Widget Preferences</span></div>
+          <svg class="icon" style="color:var(--text-muted);width:15px;height:15px;"><use href="#ic-arrow-right"/></svg>
+        </div>
+        <div class="strip-card" onclick="openInteriorPage('web-multipage')">
+          <div class="strip-card-left"><svg class="icon"><use href="#ic-layers"/></svg><span>Multi-Page Sync & Reset</span></div>
+          <svg class="icon" style="color:var(--text-muted);width:15px;height:15px;"><use href="#ic-arrow-right"/></svg>
+        </div>
+        <div class="strip-card" onclick="openInteriorPage('web-tools-a11y')">
+          <div class="strip-card-left"><svg class="icon"><use href="#ic-terminal"/></svg><span>Polygon Tools & Accessibility</span></div>
+          <svg class="icon" style="color:var(--text-muted);width:15px;height:15px;"><use href="#ic-arrow-right"/></svg>
+        </div>
+      </div>
+    </section>
+
+    <section class="home-section">
+      <div class="home-section-title">Reference & Sandbox</div>
+      <div class="clean-strip-grid">
+        <div class="strip-card" onclick="openInteriorPage('ref-kinds')">
+          <div class="strip-card-left"><svg class="icon"><use href="#ic-book"/></svg><span>Object Kinds</span></div>
+          <svg class="icon" style="color:var(--text-muted);width:15px;height:15px;"><use href="#ic-arrow-right"/></svg>
+        </div>
+        <div class="strip-card" onclick="openInteriorPage('ref-constraints')">
+          <div class="strip-card-left"><svg class="icon"><use href="#ic-code"/></svg><span>Constraint Reference</span></div>
+          <svg class="icon" style="color:var(--text-muted);width:15px;height:15px;"><use href="#ic-arrow-right"/></svg>
+        </div>
+        <div class="strip-card" onclick="openInteriorPage('playground')">
+          <div class="strip-card-left"><svg class="icon"><use href="#ic-play"/></svg><span>Interactive Sandbox</span></div>
+          <svg class="icon" style="color:var(--text-muted);width:15px;height:15px;"><use href="#ic-arrow-right"/></svg>
+        </div>
+      </div>
+    </section>
+    <footer class="site-footer-note"><span>Unofficial community technical reference · Not affiliated with KCP Technologies or McGraw-Hill Education</span><span>Web Sketchpad engine and trademarks belong to their respective owners</span></footer>
+  </div>
+
+  <div class="interior-shell" id="interiorView">
+    <div class="mobile-drawer-mask" id="mobileDrawerMask" onclick="closeMobileDrawer()"></div>
+    <aside class="docs-sidebar" id="docsSidebar">
+      <div class="search-box-trigger" onclick="openSearchModal()">
+        <span style="display:inline-flex;align-items:center;gap:8px;">
+          <svg class="icon"><use href="#ic-search"/></svg>
+          <span>Search...</span>
+        </span>
+        <span class="kbd-group">
+          <span class="kbd-cap">Ctrl</span>
+          <span class="kbd-cap">K</span>
+        </span>
+      </div>
+
+      <div class="sidebar-group">
+        <div class="sidebar-group-label">Getting Started</div>
+        <div class="sidebar-item" data-page="intro" onclick="openInteriorPage('intro')"><span>Architecture Overview</span></div>
+        <div class="sidebar-item active" data-page="quickstart" onclick="openInteriorPage('quickstart')"><span>Minimal Document Skeleton</span></div>
+        <div class="sidebar-item" data-page="troubleshooting" onclick="openInteriorPage('troubleshooting')"><span>Validation & Diagnostics</span></div>
+      </div>
+
+      <div class="sidebar-group">
+        <div class="sidebar-group-label">Core Data Model</div>
+        <div class="sidebar-item" data-page="architecture" onclick="openInteriorPage('architecture')"><span>Document Structure & Quadruple Model</span></div>
+        <div class="sidebar-item" data-page="coordinates" onclick="openInteriorPage('coordinates')"><span>Pixel Coordinates & Units</span></div>
+        <div class="sidebar-item" data-page="styles" onclick="openInteriorPage('styles')"><span>Visual Styles & Layers</span></div>
+      </div>
+
+      <div class="sidebar-group">
+        <div class="sidebar-group-label">Construction Guides</div>
+        <div class="sidebar-item" data-page="guide-euclidean" onclick="openInteriorPage('guide-euclidean')"><span>Points, Lines & Intersections</span></div>
+        <div class="sidebar-item" data-page="guide-shapes" onclick="openInteriorPage('guide-shapes')"><span>Circles, Arcs, Polygons & Markers</span></div>
+        <div class="sidebar-item" data-page="guide-measures" onclick="openInteriorPage('guide-measures')"><span>Measures & Expressions</span></div>
+        <div class="sidebar-item" data-page="guide-functions" onclick="openInteriorPage('guide-functions')"><span>Coordinate Systems, Functions & Intersections</span></div>
+        <div class="sidebar-item" data-page="guide-transforms" onclick="openInteriorPage('guide-transforms')"><span>Transforms & Fractal Iteration</span></div>
+        <div class="sidebar-item" data-page="guide-buttons" onclick="openInteriorPage('guide-buttons')"><span>Action Buttons & Animation</span></div>
+      </div>
+
+      <div class="sidebar-group">
+        <div class="sidebar-group-label">Web Integration</div>
+        <div class="sidebar-item" data-page="web-widgets" onclick="openInteriorPage('web-widgets')"><span>Embedding & Widget Preferences</span></div>
+        <div class="sidebar-item" data-page="web-multipage" onclick="openInteriorPage('web-multipage')"><span>Multi-Page Sync & Reset</span></div>
+        <div class="sidebar-item" data-page="web-tools-a11y" onclick="openInteriorPage('web-tools-a11y')"><span>Polygon Tools & Accessibility</span></div>
+      </div>
+
+      <div class="sidebar-group">
+        <div class="sidebar-group-label">Reference & Sandbox</div>
+        <div class="sidebar-item" data-page="ref-kinds" onclick="openInteriorPage('ref-kinds')"><span>Object Kinds</span></div>
+        <div class="sidebar-item" data-page="ref-constraints" onclick="openInteriorPage('ref-constraints')"><span>Constraint Reference</span></div>
+        <div class="sidebar-item" data-page="playground" onclick="openInteriorPage('playground')"><span>Interactive Sandbox</span></div>
+        <div class="sidebar-item" data-page="llm-spec" onclick="openInteriorPage('llm-spec')"><span>Agent Skills</span></div>
+      </div>
+    </aside>
+
+    <main class="docs-main" id="docsMainArticle"></main>
+  </div>
+
+  
+  <div class="modal-mask" id="searchModal" onclick="if(event.target===this)closeSearchModal()">
+    <div class="modal-box">
+      <input type="text" class="modal-input" id="globalSearchInput" placeholder="Search syntax, object kinds, or constraints..." oninput="renderGlobalSearch(this.value)" />
+      <div class="modal-list" id="globalSearchResults"></div>
+    </div>
+  </div>
+
+  <script>
+    function makeSketch(width, height, objects) {
+      return {
+        metadata: { width: width, height: height, "wsp-version": "4.8.0", "start-page": "1" },
+        resources: { fontList: ["\"Arial\", sans-serif", "\"Times New Roman\", serif"] },
+        pages: [{
+          metadata: { title: "Sketch", id: "1", sketchRect: { top: 0, left: 0, bottom: height, right: width } },
+          preferences: {
+            units: { length: "cm", angle: "deg" },
+            precision: { length: 2, angle: 2, scalar: 2 },
+            colorableComponents: { Background: { color: "white" } },
+            text: { mathItalicization: true, textTypes: {} }
+          },
+          objects: objects
+        }]
+      };
+    }
+
+    const PRESET_SKETCHES = {
+      minimal: makeSketch(660, 300, {
+        "1": { kind: "Point", genus: "Point", constraint: "Free", geom: { loc: { x: 170, y: 155 } }, label: "A", style: { color: "#D63628", label: { showLabel: true, labelOffsetX: -18, labelOffsetY: 14 } } },
+        "2": { kind: "Point", genus: "Point", constraint: "Free", geom: { loc: { x: 490, y: 155 } }, label: "B", style: { color: "#D63628", label: { showLabel: true, labelOffsetX: 10, labelOffsetY: 14 } } },
+        "3": { kind: "Straight", genus: "Segment", constraint: "Segment", parents: { p0: "1", p1: "2" }, style: { color: "#184F95", width: 2.5 } },
+        "4": { kind: "Measure", genus: "DistanceMeasure", constraint: "MeasurementLength", parents: { path: "3" }, geom: { loc: { x: 24, y: 24 } }, style: { "font-size": 15, precision: 2, nameOrigin: "namedFromTemplate" } }
+      }),
+
+      euclidean: makeSketch(600, 320, {
+        "1": { kind: "Point", genus: "Point", constraint: "Free", geom: { loc: { x: 120, y: 265 } }, label: "A", style: { color: "#D63628", label: { showLabel: true, labelOffsetX: -18, labelOffsetY: 15 } } },
+        "2": { kind: "Point", genus: "Point", constraint: "Free", geom: { loc: { x: 480, y: 265 } }, label: "B", style: { color: "#D63628", label: { showLabel: true, labelOffsetX: 8, labelOffsetY: 15 } } },
+        "3": { kind: "Point", genus: "Point", constraint: "Free", geom: { loc: { x: 260, y: 62 } }, label: "C", style: { color: "#D63628", label: { showLabel: true, labelOffsetX: -5, labelOffsetY: -12 } } },
+        "4": { kind: "Polygon", genus: "Triangle", constraint: "PolygonFromPoints", parents: { "0": "1", "1": "2", "2": "3" }, style: { color: "rgb(225,236,252)", layerOrder: 0 } },
+        "5": { kind: "Straight", genus: "Segment", constraint: "Segment", parents: { p0: "1", p1: "2" }, style: { color: "#184F95", width: 2 } },
+        "6": { kind: "Straight", genus: "Segment", constraint: "Segment", parents: { p0: "2", p1: "3" }, style: { color: "#184F95", width: 2 } },
+        "7": { kind: "Straight", genus: "Segment", constraint: "Segment", parents: { p0: "3", p1: "1" }, style: { color: "#184F95", width: 2 } },
+        "8": { kind: "Point", genus: "Midpoint", constraint: "Midpoint", parents: { path: "5" }, label: "M", style: { color: "#184F95", label: { showLabel: true, labelOffsetX: -5, labelOffsetY: 18 } } },
+        "9": { kind: "Straight", genus: "Perpendicular", constraint: "Perpendicular", parents: { p0: "3", line: "5" }, style: { color: "#0D7A5F", width: 1.4 } },
+        "10": { kind: "Point", genus: "Intersection", constraint: "Intersection", parents: { line0: "5", line1: "9" }, label: "H", style: { color: "#0B0B0B", label: { showLabel: true, labelOffsetX: 6, labelOffsetY: 16 } } },
+        "11": { kind: "Straight", genus: "Parallel", constraint: "Parallel", parents: { p0: "3", line: "5" }, style: { color: "#64748B", width: 1.2 } },
+        "12": { kind: "Straight", genus: "Bisector", constraint: "AngleBisector", parents: { A: "2", B: "1", C: "3" }, style: { color: "#D97706", width: 1.5 } },
+        "13": { kind: "AngleMarker", genus: "AngleMarker", constraint: "AngleMarker_Simple", parents: { p0: "3", p1: "2", p2: "1" }, style: { color: "#184F95", "inner-radius": 24, width: 2 } },
+        "14": { kind: "Measure", genus: "AngleMeasure", constraint: "MeasurementAngle", parents: { p0: "2", p1: "1", p2: "3" }, geom: { loc: { x: 18, y: 18 } }, style: { "font-size": 14, precision: 1, nameOrigin: "namedFromTemplate" } },
+        "15": { kind: "Measure", genus: "AreaMeasure", constraint: "MeasurementArea", parents: { shape: "4" }, geom: { loc: { x: 18, y: 42 } }, style: { "font-size": 14, precision: 2, nameOrigin: "namedFromTemplate" } }
+      }),
+
+      euclideanPure: makeSketch(600, 320, {
+        "1": { kind: "Point", genus: "Point", constraint: "Free", geom: { loc: { x: 120, y: 265 } }, label: "A", style: { color: "#D63628", label: { showLabel: true, labelOffsetX: -18, labelOffsetY: 15 } } },
+        "2": { kind: "Point", genus: "Point", constraint: "Free", geom: { loc: { x: 480, y: 265 } }, label: "B", style: { color: "#D63628", label: { showLabel: true, labelOffsetX: 8, labelOffsetY: 15 } } },
+        "3": { kind: "Point", genus: "Point", constraint: "Free", geom: { loc: { x: 260, y: 62 } }, label: "C", style: { color: "#D63628", label: { showLabel: true, labelOffsetX: -5, labelOffsetY: -12 } } },
+        "4": { kind: "Polygon", genus: "Triangle", constraint: "PolygonFromPoints", parents: { "0": "1", "1": "2", "2": "3" }, style: { color: "rgb(225,236,252)", layerOrder: 0, selectable: false } },
+        "5": { kind: "Straight", genus: "Segment", constraint: "Segment", parents: { p0: "1", p1: "2" }, style: { color: "#184F95", width: 2 } },
+        "6": { kind: "Straight", genus: "Segment", constraint: "Segment", parents: { p0: "2", p1: "3" }, style: { color: "#184F95", width: 2 } },
+        "7": { kind: "Straight", genus: "Segment", constraint: "Segment", parents: { p0: "3", p1: "1" }, style: { color: "#184F95", width: 2 } },
+        "8": { kind: "Point", genus: "Midpoint", constraint: "Midpoint", parents: { path: "5" }, label: "M", style: { color: "#184F95", label: { showLabel: true, labelOffsetX: -5, labelOffsetY: 18 } } },
+        "9": { kind: "Straight", genus: "Perpendicular", constraint: "Perpendicular", parents: { p0: "3", line: "5" }, style: { color: "#0D7A5F", width: 1.4 } },
+        "10": { kind: "Point", genus: "Intersection", constraint: "Intersection", parents: { line0: "5", line1: "9" }, label: "H", style: { color: "#0B0B0B", label: { showLabel: true, labelOffsetX: 6, labelOffsetY: 16 } } },
+        "11": { kind: "Straight", genus: "Parallel", constraint: "Parallel", parents: { p0: "3", line: "5" }, style: { color: "#64748B", width: 1.2 } },
+        "12": { kind: "Straight", genus: "Bisector", constraint: "AngleBisector", parents: { A: "2", B: "1", C: "3" }, style: { color: "#D97706", width: 1.5 } },
+        "13": { kind: "AngleMarker", genus: "AngleMarker", constraint: "AngleMarker_Simple", parents: { p0: "3", p1: "2", p2: "1" }, style: { color: "#184F95", "inner-radius": 24, width: 2 } }
+      }),
+
+      equilateral: makeSketch(600, 310, {
+        "1": { kind: "Point", genus: "Point", constraint: "Free", geom: { loc: { x: 250, y: 165 } }, label: "A", style: { color: "#D63628", label: { showLabel: true, labelOffsetX: -18, labelOffsetY: 14 } } },
+        "2": { kind: "Point", genus: "Point", constraint: "Free", geom: { loc: { x: 350, y: 165 } }, label: "B", style: { color: "#D63628", label: { showLabel: true, labelOffsetX: 10, labelOffsetY: 14 } } },
+        "3": { kind: "Circle", genus: "Circle", constraint: "CircleFromTwoPoints", parents: { p0: "1", p1: "2" }, style: { color: "#184F95", width: 1.5 } },
+        "4": { kind: "Circle", genus: "Circle", constraint: "CircleFromTwoPoints", parents: { p0: "2", p1: "1" }, style: { color: "#0D7A5F", "line-style": "dashed", width: 1.5 } },
+        "5": { kind: "Point", genus: "Intersection", constraint: "Intersection1", parents: { circle: "3", obj: "4" }, label: "C", style: { color: "#0B0B0B", label: { showLabel: true, labelOffsetX: -4, labelOffsetY: 18 } } },
+        "6": { kind: "Polygon", genus: "Triangle", constraint: "PolygonFromPoints", parents: { "0": "1", "1": "2", "2": "5" }, style: { color: "rgb(225,236,252)", layerOrder: 0 } },
+        "7": { kind: "Straight", genus: "Segment", constraint: "Segment", parents: { p0: "1", p1: "2" }, style: { color: "#184F95", width: 2.2 } },
+        "8": { kind: "Straight", genus: "Segment", constraint: "Segment", parents: { p0: "1", p1: "5" }, style: { color: "#184F95", width: 2.2 } },
+        "9": { kind: "Straight", genus: "Segment", constraint: "Segment", parents: { p0: "2", p1: "5" }, style: { color: "#184F95", width: 2.2 } }
+      }),
+
+      
+      parabola: makeSketch(620, 330, {
+        "1": { kind: "Point", genus: "OriginPoint", constraint: "Free", geom: { loc: { x: 310, y: 195 } }, label: "O", style: { color: "#D63628", label: { showLabel: true, labelOffsetX: 6, labelOffsetY: 16 } } },
+        "2": { kind: "Point", genus: "UnitPoint", constraint: "HorizontalUnitPoint", parents: { origin: "1" }, value: 44.0, style: { hidden: true } },
+        "3": { kind: "Axis", genus: "Axis", constraint: "AxisInternalDist", parents: { origin: "1", unitPoint: "2" }, orientation: "horizontal", label: "x", style: { color: "rgb(96,96,96)", width: 1, tickNumbering: true, selectable: false } },
+        "4": { kind: "Point", genus: "UnitPoint", constraint: "UnitPointInternalSquare", parents: { unitPoint: "2" }, style: { hidden: true } },
+        "5": { kind: "Axis", genus: "Axis", constraint: "AxisInternalDist", parents: { origin: "1", unitPoint: "4" }, orientation: "vertical", label: "y", style: { color: "rgb(96,96,96)", width: 1, tickNumbering: true, selectable: false } },
+        "6": { kind: "CoordSys", genus: "CoordSys", constraint: "CoordSys", parents: { axisX: "3", axisY: "5" }, shape: "square", style: { color: "silver", grid: "gridlines", selectable: false } },
+        "7": { kind: "Expression", genus: "ScalarMeasure", constraint: "Calculation", parents: {}, geom: { loc: { x: 18, y: 20 } }, expressionType: "UniMeasure_ExprType", expression: "0.45", label: "a", style: { "font-size": 14, precision: 2, nameOrigin: "namedFromLabel" } },
+        "8": { kind: "Expression", genus: "Function", constraint: "Function", parents: { "0": "7" }, geom: { loc: { x: 18, y: 46 } }, expressionType: "YofX_FunctionExprType", functionExpr: { notation: "function", name: "f", dependentVar: "y", independentVar: "x" }, expression: "@0*x^2-2", label: "f", style: { "font-size": 14 } },
+        "9": { kind: "Sampler", genus: "FunctionPlot", constraint: "FunctionPlot", parents: { function: "8", coordSys: "6" }, numSamples: 180, isDiscrete: false, showEndpoints: true, driverDomain: { low: -6, high: 6 }, style: { color: "#184F95", "line-style": "solid", width: 2.5 } },
+        "10": { kind: "Point", genus: "Point", constraint: "Free", geom: { loc: { x: 170, y: 170 } }, label: "A", style: { color: "#D63628", label: { showLabel: true, labelOffsetX: -14, labelOffsetY: -10 } } },
+        "11": { kind: "Point", genus: "Point", constraint: "Free", geom: { loc: { x: 470, y: 120 } }, label: "B", style: { color: "#D63628", label: { showLabel: true, labelOffsetX: 8, labelOffsetY: -10 } } },
+        "12": { kind: "Straight", genus: "Line", constraint: "Line", parents: { p0: "10", p1: "11" }, style: { color: "#0D7A5F", "line-style": "dashed", width: 1.6 } },
+        "13": { kind: "Point", genus: "Intersection", constraint: "InterApproxPathStitchedPath_C", parents: { "0": "9", "1": "12" }, label: "P[1]", style: { color: "#0B0B0B", radius: 5, label: { showLabel: true, labelOffsetX: -22, labelOffsetY: 16 } } },
+        "14": { kind: "Point", genus: "Intersection", constraint: "InterApproxPathStitchedPath_C", parents: { "0": "9", "1": "12" }, label: "P[2]", style: { color: "#0B0B0B", radius: 5, label: { showLabel: true, labelOffsetX: 8, labelOffsetY: 16 } } }
+      }),
+
+      iteration: makeSketch(600, 330, {
+        "1": { kind: "Point", genus: "Point", constraint: "Free", geom: { loc: { x: 300, y: 310 } }, label: "A", style: { color: "#D63628", label: { showLabel: true, labelOffsetX: -18, labelOffsetY: 10 } } },
+        "2": { kind: "Point", genus: "Point", constraint: "Free", geom: { loc: { x: 300, y: 240 } }, label: "B", style: { color: "#D63628", label: { showLabel: true, labelOffsetX: 10, labelOffsetY: 8 } } },
+        "3": { kind: "Straight", genus: "Segment", constraint: "Segment", parents: { p0: "1", p1: "2" }, style: { color: "#184F95", width: 3 } },
+        "4": { kind: "Point", genus: "Point", constraint: "DilateFixFactor", parents: { source: "1", center: "2" }, scaleFactor: 0.72, style: { hidden: true } },
+        "5": { kind: "Point", genus: "Point", constraint: "Rotate", parents: { source: "4", center: "2" }, angle: 2.55, label: "L", style: { color: "#0D7A5F", label: { showLabel: true, labelOffsetX: -18, labelOffsetY: -6 } } },
+        "6": { kind: "Point", genus: "Point", constraint: "Rotate", parents: { source: "4", center: "2" }, angle: -2.55, label: "R", style: { color: "#0D7A5F", label: { showLabel: true, labelOffsetX: 8, labelOffsetY: -6 } } },
+        "7": { kind: "Straight", genus: "Segment", constraint: "Segment", parents: { p0: "2", p1: "5" }, style: { color: "#0D7A5F", width: 2 } },
+        "8": { kind: "Straight", genus: "Segment", constraint: "Segment", parents: { p0: "2", p1: "6" }, style: { color: "#0D7A5F", width: 2 } },
+        "9": { kind: "Map", genus: "Map", constraint: "IterateMap", parents: { preimage0: "1", preimage1: "2", map0image0: "2", map0image1: "5", map1image0: "2", map1image1: "6", "0": "3" }, currentDepth: 5 },
+        "10": { kind: "IterateImage", genus: "IterateImage", constraint: "IterateImage", parents: { source: "3", map: "9" }, style: { color: "#0D7A5F", width: 1.5 } }
+      })
+    };
+
+    const HERO_CODE_SNIPPETS = {
+      json: `{
+  <span class="syn-p">"metadata"</span>: { <span class="syn-p">"width"</span>: <span class="syn-n">600</span>, <span class="syn-p">"height"</span>: <span class="syn-n">320</span>, <span class="syn-p">"wsp-version"</span>: <span class="syn-s">"4.8.0"</span>, <span class="syn-p">"start-page"</span>: <span class="syn-s">"1"</span> },
+  <span class="syn-p">"resources"</span>: { <span class="syn-p">"fontList"</span>: [<span class="syn-s">"\\"Arial\\", sans-serif"</span>] },
+  <span class="syn-p">"pages"</span>: [{
+    <span class="syn-p">"metadata"</span>: { <span class="syn-p">"id"</span>: <span class="syn-s">"1"</span>, <span class="syn-p">"sketchRect"</span>: { <span class="syn-p">"top"</span>: <span class="syn-n">0</span>, <span class="syn-p">"left"</span>: <span class="syn-n">0</span>, <span class="syn-p">"bottom"</span>: <span class="syn-n">320</span>, <span class="syn-p">"right"</span>: <span class="syn-n">600</span> } },
+    <span class="syn-p">"preferences"</span>: {
+      <span class="syn-p">"units"</span>: { <span class="syn-p">"length"</span>: <span class="syn-s">"cm"</span>, <span class="syn-p">"angle"</span>: <span class="syn-s">"deg"</span> },
+      <span class="syn-p">"precision"</span>: { <span class="syn-p">"length"</span>: <span class="syn-n">2</span>, <span class="syn-p">"angle"</span>: <span class="syn-n">2</span>, <span class="syn-p">"scalar"</span>: <span class="syn-n">2</span> },
+      <span class="syn-p">"colorableComponents"</span>: { <span class="syn-p">"Background"</span>: { <span class="syn-p">"color"</span>: <span class="syn-s">"white"</span> } },
+      <span class="syn-p">"text"</span>: { <span class="syn-p">"mathItalicization"</span>: <span class="syn-k">true</span>, <span class="syn-p">"textTypes"</span>: {} }
+    },
+    <span class="syn-p">"objects"</span>: {
+      <span class="syn-p">"1"</span>: { <span class="syn-p">"kind"</span>: <span class="syn-s">"Point"</span>, <span class="syn-p">"genus"</span>: <span class="syn-s">"Point"</span>, <span class="syn-p">"constraint"</span>: <span class="syn-s">"Free"</span>, <span class="syn-p">"geom"</span>: { <span class="syn-p">"loc"</span>: { <span class="syn-p">"x"</span>: <span class="syn-n">120</span>, <span class="syn-p">"y"</span>: <span class="syn-n">265</span> } }, <span class="syn-p">"label"</span>: <span class="syn-s">"A"</span> },
+      <span class="syn-p">"2"</span>: { <span class="syn-p">"kind"</span>: <span class="syn-s">"Point"</span>, <span class="syn-p">"genus"</span>: <span class="syn-s">"Point"</span>, <span class="syn-p">"constraint"</span>: <span class="syn-s">"Free"</span>, <span class="syn-p">"geom"</span>: { <span class="syn-p">"loc"</span>: { <span class="syn-p">"x"</span>: <span class="syn-n">480</span>, <span class="syn-p">"y"</span>: <span class="syn-n">265</span> } }, <span class="syn-p">"label"</span>: <span class="syn-s">"B"</span> },
+      <span class="syn-p">"5"</span>: { <span class="syn-p">"kind"</span>: <span class="syn-s">"Straight"</span>, <span class="syn-p">"genus"</span>: <span class="syn-s">"Segment"</span>, <span class="syn-p">"constraint"</span>: <span class="syn-s">"Segment"</span>, <span class="syn-p">"parents"</span>: { <span class="syn-p">"p0"</span>: <span class="syn-s">"1"</span>, <span class="syn-p">"p1"</span>: <span class="syn-s">"2"</span> } }
+    }
+  }]
+}`,
+      html: `<span class="syn-k">&lt;!DOCTYPE html&gt;</span>
+<span class="syn-p">&lt;html&gt;</span>
+<span class="syn-p">&lt;head&gt;</span>
+  <span class="syn-p">&lt;meta</span> charset=<span class="syn-s">"utf-8"</span><span class="syn-p">&gt;</span>
+  <span class="syn-p">&lt;script</span> src=<span class="syn-s">"engine/jquery-2.1.0.min.js"</span><span class="syn-p">&gt;&lt;/script&gt;</span>
+  <span class="syn-p">&lt;script</span> src=<span class="syn-s">"engine/wsp-min.js"</span><span class="syn-p">&gt;&lt;/script&gt;</span>
+  <span class="syn-p">&lt;script</span> src=<span class="syn-s">"engine/wsp-runner.js"</span><span class="syn-p">&gt;&lt;/script&gt;</span>
+  <span class="syn-p">&lt;script&gt;</span><span class="syn-k">var</span> mySketch = { <span class="syn-c"></span> };<span class="syn-p">&lt;/script&gt;</span>
+<span class="syn-p">&lt;/head&gt;</span>
+<span class="syn-p">&lt;body&gt;</span>
+  <span class="syn-p">&lt;div</span> class=<span class="syn-s">"sketch_canvas"</span> data-var=<span class="syn-s">"mySketch"</span><span class="syn-p">&gt;&lt;/div&gt;</span>
+<span class="syn-p">&lt;/body&gt;</span>
+<span class="syn-p">&lt;/html&gt;</span>`
+    };
+
+    function fitLiveSketchToStage(containerId, sketchObj) {
+      const el = document.getElementById(containerId);
+      if (!el) return;
+      const node = el.querySelector(".sketch_canvas");
+      if (!node) return;
+      if (sketchObj && sketchObj.metadata) {
+        if (sketchObj.metadata.width) el.dataset.sketchW = String(sketchObj.metadata.width);
+        if (sketchObj.metadata.height) el.dataset.sketchH = String(sketchObj.metadata.height);
+      }
+      const sketchW = parseFloat(el.dataset.sketchW) || node.offsetWidth || 620;
+      const sketchH = parseFloat(el.dataset.sketchH) || node.offsetHeight || 340;
+      const stage = el.parentElement;
+      if (!stage) return;
+      const cs = getComputedStyle(stage);
+      const availW = stage.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+      if (availW > 0 && sketchW > availW) {
+        const scale = availW / sketchW;
+        el.style.width = Math.floor(availW) + "px";
+        el.style.height = Math.ceil(sketchH * scale) + "px";
+        el.style.overflow = "hidden";
+        el.style.position = "relative";
+        node.style.width = sketchW + "px";
+        node.style.height = sketchH + "px";
+        node.style.position = "absolute";
+        node.style.top = "0";
+        node.style.left = "0";
+        node.style.transformOrigin = "top left";
+        node.style.transform = `scale(${scale})`;
+      } else {
+        el.style.width = "";
+        el.style.height = "";
+        el.style.overflow = "";
+        el.style.position = "";
+        node.style.width = "";
+        node.style.height = "";
+        node.style.position = "";
+        node.style.top = "";
+        node.style.left = "";
+        node.style.transformOrigin = "";
+        node.style.transform = "";
+      }
+    }
+
+    function refitAllLiveSketches() {
+      ["heroLiveMount", "inlinePageLiveMount", "liveWspMount"].forEach(id => fitLiveSketchToStage(id));
+    }
+
+    window.addEventListener("resize", () => {
+      requestAnimationFrame(refitAllLiveSketches);
+    });
+
+    function unmountLiveSketch(containerId) {
+      const el = document.getElementById(containerId);
+      if (!el) return;
+      if (window.jQuery) {
+        jQuery(el).find(".sketch_canvas").each(function () {
+          const doc = jQuery(this).data("document");
+          if (doc && typeof doc.stop === "function") {
+            try { doc.stop(); } catch (e) {}
+          }
+          jQuery(this).off().removeData();
+        });
+      }
+      el.innerHTML = "";
+      el.style.width = "";
+      el.style.height = "";
+    }
+
+    function mountLiveSketchTo(containerId, varName, sketchObj) {
+      const el = document.getElementById(containerId);
+      if (!el) return;
+      unmountLiveSketch(containerId);
+      if (!window.jQuery || !jQuery.fn || !jQuery.fn.WSP) {
+        el.innerHTML = `<div class="engine-missing-note">Loading Web Sketchpad engine from official host…</div>`;
+        if (window.whenWspEngineReady) {
+          window.whenWspEngineReady(function () {
+            if (document.getElementById(containerId)) mountLiveSketchTo(containerId, varName, sketchObj);
+          });
+        }
+        return;
+      }
+      window[varName] = JSON.parse(JSON.stringify(sketchObj));
+      el.innerHTML = `<div class="sketch_canvas" id="${containerId}_node" data-var="${varName}"></div>`;
+      jQuery("#" + containerId + "_node").WSP("loadSketch");
+      fitLiveSketchToStage(containerId, sketchObj);
+      requestAnimationFrame(() => fitLiveSketchToStage(containerId, sketchObj));
+    }
+
+    function switchHeroCodeTab(key, btnEl) {
+      document.querySelectorAll(".code-tab-btn").forEach(b => b.classList.remove("active"));
+      if (btnEl) btnEl.classList.add("active");
+      const livePane = document.getElementById("heroLivePane");
+      const codePane = document.getElementById("heroCodeBody");
+      if (key === "live") {
+        livePane.style.display = "block";
+        codePane.style.display = "none";
+        mountLiveSketchTo("heroLiveMount", "__HERO_LIVE_SKETCH__", PRESET_SKETCHES.euclideanPure);
+      } else {
+        livePane.style.display = "none";
+        codePane.style.display = "block";
+        codePane.innerHTML = HERO_CODE_SNIPPETS[key] || HERO_CODE_SNIPPETS.json;
+      }
+    }
+
+    function copyHeroCode() {
+      const codePane = document.getElementById("heroCodeBody");
+      const text = codePane.style.display === "none"
+        ? JSON.stringify(PRESET_SKETCHES.euclidean, null, 2)
+        : codePane.innerText;
+      navigator.clipboard.writeText(text);
+    }
+
+    // =========================================================================
+    // Interior Documentation Pages (Pure Chinese, Zero Flashy Prefixes)
+    // =========================================================================
+    const PAGES = {
+      "intro": {
+        breadcrumb: "Getting Started › Overview",
+        title: "Architecture Overview",
+        lead: "Web Sketchpad is the HTML5/JavaScript dynamic geometry engine for The Geometer's Sketchpad. It uses declarative JSON to model compass-and-straightedge constructions, dynamic measurements, function plots, and fractal iterations.",
+        html: `
+          <h2 class="doc-h2">1. Two Ways to Author Web Sketches</h2>
+          <div class="table-box">
+            <table class="clean-table">
+              <thead>
+                <tr>
+                  <th>Aspect</th>
+                  <th>Hand-Written Minimal Skeleton</th>
+                  <th>Desktop Export Template</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Approach</td>
+                  <td>Write a clean declarative JSON constraint graph directly</td>
+                  <td>Export from desktop Sketchpad and patch JSON nodes</td>
+                </tr>
+                <tr>
+                  <td>Best For</td>
+                  <td>Programmatic generation, AI agents, clean scratch authoring</td>
+                  <td>Migrating legacy .gsp files with complex custom tools</td>
+                </tr>
+                <tr>
+                  <td>Typical Size</td>
+                  <td>Compact and clean (typically 1–3 KB)</td>
+                  <td>Includes desktop print settings and full font tables (15–80 KB)</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 class="doc-h2">2. Runtime Scripts & Three-Layer Canvas</h2>
+          <div class="diagram-card">
+            <div class="diagram-card-head">
+              <span>Diagram · Three-Layer Canvas & DOM Text Stack</span>
+              <span style="font-family:var(--font-mono);font-size:12px;">Pipeline</span>
+            </div>
+            <div class="diagram-card-body">
+              <svg width="720" height="235" viewBox="0 0 720 235" fill="none" xmlns="http://www.w3.org/2000/svg">
+                
+                <polygon points="105,175 295,125 465,165 275,215" fill="var(--bg-elevated)" stroke="var(--text-muted)" stroke-width="1.3"/>
+                <line x1="152" y1="162" x2="322" y2="202" stroke="var(--border-hairline)" stroke-width="1"/>
+                <line x1="200" y1="150" x2="370" y2="190" stroke="var(--border-hairline)" stroke-width="1"/>
+                <line x1="248" y1="137" x2="418" y2="177" stroke="var(--border-hairline)" stroke-width="1"/>
+                <line x1="170" y1="190" x2="360" y2="140" stroke="var(--border-hairline)" stroke-width="1"/>
+                <line x1="225" y1="203" x2="415" y2="153" stroke="var(--border-hairline)" stroke-width="1"/>
+
+                
+                <polygon points="105,120 295,70 465,110 275,160" fill="var(--bg-surface)" fill-opacity="0.92" stroke="#184F95" stroke-width="1.6"/>
+                <polygon points="215,124 328,108 286,144" fill="#184F95" fill-opacity="0.14" stroke="#184F95" stroke-width="1.6"/>
+                <circle cx="215" cy="124" r="3.5" fill="#D63628"/>
+                <circle cx="328" cy="108" r="3.5" fill="#D63628"/>
+                <circle cx="286" cy="144" r="3.5" fill="#D63628"/>
+
+                
+                <polygon points="105,65 295,15 465,55 275,105" fill="var(--bg-surface)" fill-opacity="0.86" stroke="#0D7A5F" stroke-width="1.5" stroke-dasharray="5 3"/>
+                <rect x="225" y="47" width="112" height="24" rx="5" fill="var(--bg-elevated)" stroke="#0D7A5F" stroke-width="1.2"/>
+                <text x="236" y="63" fill="var(--text-primary)" font-family="monospace" font-size="11.5">m∠BAC = 60.0°</text>
+
+                
+                <line x1="465" y1="55" x2="505" y2="55" stroke="#0D7A5F" stroke-width="1.2"/>
+                <circle cx="465" cy="55" r="2.8" fill="#0D7A5F"/>
+                <text x="514" y="51" fill="var(--text-primary)" font-size="13.5" font-weight="500">Top: Interactive Highlight & DOM Text Layer</text>
+                <text x="514" y="69" fill="var(--text-muted)" font-size="12">Drag feedback, live measurements, and buttons</text>
+
+                <line x1="465" y1="110" x2="505" y2="110" stroke="#184F95" stroke-width="1.2"/>
+                <circle cx="465" cy="110" r="2.8" fill="#184F95"/>
+                <text x="514" y="106" fill="var(--text-primary)" font-size="13.5" font-weight="500">Middle: Primary Geometry Canvas</text>
+                <text x="514" y="124" fill="var(--text-muted)" font-size="12">Points, lines, circles, polygons, and plots</text>
+
+                <line x1="465" y1="165" x2="505" y2="165" stroke="var(--text-muted)" stroke-width="1.2"/>
+                <circle cx="465" cy="165" r="2.8" fill="var(--text-muted)"/>
+                <text x="514" y="161" fill="var(--text-primary)" font-size="13.5" font-weight="500">Bottom: Background & Coordinate Grid</text>
+                <text x="514" y="179" fill="var(--text-muted)" font-size="12">Background fill, gridlines, and traces</text>
+              </svg>
+            </div>
+          </div>
+          <p class="doc-p">The runtime consists of three scripts: <code class="ic">jquery-2.1.0.min.js</code>, the core solver <code class="ic">wsp.js</code> (or <code class="ic">wsp-min.js</code>), and the DOM loader <code class="ic">wsp-runner.js</code>. Upon mounting, the engine creates three stacked HTML5 canvases for the background grid, primary geometric primitives, and interactive highlights.</p>
+        `
+      },
+
+      "quickstart": {
+        breadcrumb: "Getting Started › Quickstart",
+        title: "Minimal Document Skeleton",
+        lead: "You do not need a desktop export template. Include these required metadata and preference fields to author any valid Web Sketch JSON from scratch.",
+        demoPreset: "minimal",
+        demoCaption: "Rendered directly from the minimal skeleton with two free points and a segment length measure. Drag A or B.",
+        html: `
+          <div class="hairline-callout">
+            <svg class="icon" style="margin-top:3px;"><use href="#ic-info"/></svg>
+            <div><strong>Why use <code>data-var</code>?</strong> Browsers block local <code>file://</code> AJAX requests for <code>data-url</code> due to CORS. Binding a global variable via <code>data-var="mySketch"</code> works reliably both offline and online.</div>
+          </div>
+          <div class="hairline-callout">
+            <svg class="icon" style="margin-top:3px;"><use href="#ic-compass"/></svg>
+            <div><strong>Dependency order</strong>: Define entries in <code>objects</code> strictly in topological order—free points and parameters first, then lines/circles/intersections, and finally measures, loci, and buttons. Every ID in <code>parents</code> must already exist.</div>
+          </div>
+
+          <h2 class="doc-h2">1. Minimal Valid Skeleton</h2>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>JSON · Minimal Valid Skeleton</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="Copy code"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">{
+  "metadata": {
+    "width": 800,
+    "height": 500,
+    "wsp-version": "4.8.0",
+    "start-page": "1"
+  },
+  "resources": {
+    "fontList": ["\\"Arial\\", sans-serif", "\\"Times New Roman\\", serif"]
+  },
+  "pages": [
+    {
+      "metadata": {
+        "title": "Page 1",
+        "id": "1",
+        "sketchRect": { "top": 0, "left": 0, "bottom": 500, "right": 800 }
+      },
+      "preferences": {
+        "units": { "length": "cm", "angle": "deg" },
+        "precision": { "length": 2, "angle": 2, "scalar": 2 },
+        "colorableComponents": {
+          "Background": { "color": "white" }
+        },
+        "text": {
+          "mathItalicization": true,
+          "textTypes": {}
+        }
+      },
+      "objects": {}
+    }
+  ]
+}</pre>
+          </div>
+
+          <h2 class="doc-h2">2. HTML Mounting Template</h2>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>HTML · Load Engine & Mount</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="Copy code"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+  &lt;meta charset="utf-8"&gt;
+  &lt;script src="engine/jquery-2.1.0.min.js"&gt;&lt;/script&gt;
+  &lt;script src="engine/wsp-min.js"&gt;&lt;/script&gt;
+  &lt;script src="engine/wsp-runner.js"&gt;&lt;/script&gt;
+  &lt;script&gt;var mySketch = { /* Paste skeleton above */ };&lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;div class="sketch_canvas" data-var="mySketch"&gt;&lt;/div&gt;
+&lt;/body&gt;
+&lt;/html&gt;</pre>
+          </div>
+        `
+      },
+
+      "troubleshooting": {
+        breadcrumb: "Getting Started › Diagnostics",
+        title: "Validation & Diagnostics",
+        lead: "Understand the four unguarded initialization checks that cause silent blank canvases, and use built-in diagnostic APIs to inspect sketches.",
+        html: `
+          <h2 class="doc-h2">1. Four Initialization Gates That Cause Blank Canvases</h2>
+          <div class="table-box">
+            <table class="clean-table">
+              <thead>
+                <tr>
+                  <th>Gate</th>
+                  <th>Source Location</th>
+                  <th>Check Executed</th>
+                  <th>Failure & Fix</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Gate 1</td>
+                  <td><code class="ic">wsp-runner.js</code> → <code class="ic">GSP.fixSketch</code></td>
+                  <td><code class="ic">data.metadata['wsp-version'].split('.')</code></td>
+                  <td>Missing <code class="ic">metadata["wsp-version"]</code> throws a TypeError immediately. Set it to <code class="ic">"4.8.0"</code> or <code class="ic">"4.9.0"</code>.</td>
+                </tr>
+                <tr>
+                  <td>Gate 2</td>
+                  <td><code class="ic">wsp.js</code> → <code class="ic">o.Document</code></td>
+                  <td><code class="ic">if (n !== c) return o.signal({code: "GSP.Error.invalidSketchVersion"})</code></td>
+                  <td>Major version must be <code class="ic">4</code>, otherwise the engine rejects the document without mounting any canvas.</td>
+                </tr>
+                <tr>
+                  <td>Gate 3</td>
+                  <td><code class="ic">wsp-runner.js</code> → <code class="ic">fixPage</code></td>
+                  <td><code class="ic">$.each(page.preferences.text.textTypes, ...)</code></td>
+                  <td>Missing <code class="ic">preferences.text.textTypes</code> crashes jQuery iteration. Provide at least <code class="ic">{}</code>.</td>
+                </tr>
+                <tr>
+                  <td>Gate 4</td>
+                  <td><code class="ic">wsp.js</code> → <code class="ic">Sketch.init</code></td>
+                  <td><code class="ic">r.preferences.colorableComponents.Background.color</code></td>
+                  <td>Missing <code class="ic">colorableComponents.Background</code> crashes canvas setup. Provide <code class="ic">{"color":"white"}</code>.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 class="doc-h2">2. Built-In Diagnostic APIs</h2>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>JavaScript · Support Check & Runtime Inspection</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="Copy code"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">// 1. Statically validate all object kinds and constraints before mounting
+const check = GSP.Sketch.supportCheck(mySketch.pages[0]);
+console.log(check);
+
+// 2. Inspect recalculated coordinates and existence state at runtime
+const doc = $('.sketch_canvas').data('document');
+for (const [id, g] of Object.entries(doc.focusPage.gobjList.gobjects)) {
+  console.log(id, g.kind, g.constraint, "exists:", g.state.exists, "loc:", g.geom?.loc);
+}</pre>
+          </div>
+
+          <h2 class="doc-h2">3. High-Frequency Runtime Pitfalls</h2>
+          <p class="doc-p">Each item below was verified against the live engine; missing any of these rules causes silent blank canvases, invisible measurements, or broken interactions:</p>
+          <div class="table-box">
+            <table class="clean-table">
+              <thead>
+                <tr><th>Symptom</th><th>Root Cause</th><th>Verified Fix</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Point or segment labels stay hidden</td>
+                  <td>Setting <code class="ic">"label": "A"</code> alone hides the label by default</td>
+                  <td>Explicitly include <code class="ic">"style": {"label": {"showLabel": true}}</code>.</td>
+                </tr>
+                <tr>
+                  <td>Measurements render as blank <code class="ic">Expression N =</code></td>
+                  <td>Using <code class="ic">kind: "Expression"</code> instead of <code class="ic">"Measure"</code>, or omitting <code class="ic">nameOrigin</code></td>
+                  <td>Always use <code class="ic">"kind": "Measure"</code> for <code class="ic">Measurement*</code> objects and set <code class="ic">style.nameOrigin</code> to <code class="ic">"namedFromTemplate"</code> or <code class="ic">"namedFromLabel"</code>.</td>
+                </tr>
+                <tr>
+                  <td>Free parameters evaluate to <code class="ic">undefined</code></td>
+                  <td>Top-level <code class="ic">value</code> on <code class="ic">constraint: "Free"</code> is ignored by the engine</td>
+                  <td>Define editable parameters as <code class="ic">kind:"Expression", constraint:"Calculation", parents:{}, expression:"0.45", label:"a"</code> with <code class="ic">nameOrigin:"namedFromLabel"</code>.</td>
+                </tr>
+                <tr>
+                  <td><code class="ic">GeomLocus</code> throws <code class="ic">isDiscrete</code> error or draws nothing</td>
+                  <td>Missing intermediate <code class="ic">DriveChain</code> parents or missing <code class="ic">driverDomain</code></td>
+                  <td>List every intermediate dependent object (including <code class="ic">drivenObject</code>) as <code class="ic">"0".."n"</code> in <code class="ic">parents</code>, and set <code class="ic">"isDiscrete": false</code> plus <code class="ic">"driverDomain": {"low": 0, "high": 1}</code>.</td>
+                </tr>
+                <tr>
+                  <td>Animate button disappears or path value fails</td>
+                  <td>Setting <code class="ic">genus: "Button"</code> instead of <code class="ic">"Action"</code>, or omitting <code class="ic">path</code></td>
+                  <td><code class="ic">ActionButtonAnimate</code> requires <code class="ic">"genus": "Action"</code> and <code class="ic">label</code>; <code class="ic">MeasurementValueOfPointOnPath</code> requires both <code class="ic">parents: {"point", "path"}</code>.</td>
+                </tr>
+                <tr>
+                  <td>Rotated squares fold inward over a triangle</td>
+                  <td>Canvas origin is top-left with <code class="ic">+y</code> pointing down</td>
+                  <td><code class="ic">Rotate.angle</code> is always in radians; verify the sign of <code class="ic">±π/2</code> against screen coordinates when rotating outward.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        `
+      },
+
+      "architecture": {
+        breadcrumb: "Core Data Model › Quadruple Model",
+        title: "Document Structure & Quadruple Model",
+        lead: "Each geometric entity is uniquely defined by its object ID and four core fields: kind, genus, constraint, and parents.",
+        html: `
+          
+          <div class="diagram-card">
+            <div class="diagram-card-head">
+              <span>Diagram · Object Dependency Graph & Authoring Order</span>
+              <span style="font-family:var(--font-mono);font-size:12px;">Parents First</span>
+            </div>
+            <div class="diagram-card-body">
+              <svg width="760" height="215" viewBox="0 0 760 215" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <marker id="arr-dag" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M 1 2 L 8 5 L 1 8" fill="none" stroke="var(--text-muted)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                  </marker>
+                </defs>
+                
+                <text x="86" y="20" text-anchor="middle" fill="var(--text-muted)" font-size="12">Layer 1 · Free</text>
+                <text x="306" y="20" text-anchor="middle" fill="var(--text-muted)" font-size="12">Layer 2 · Base</text>
+                <text x="516" y="20" text-anchor="middle" fill="var(--text-muted)" font-size="12">Layer 3 · Derived</text>
+                <text x="686" y="20" text-anchor="middle" fill="var(--text-muted)" font-size="12">Layer 4 · Intersect</text>
+
+                
+                <rect x="20" y="38" width="132" height="44" rx="8" fill="var(--bg-elevated)" stroke="#D63628" stroke-width="1.4"/>
+                <text x="86" y="57" text-anchor="middle" fill="var(--text-primary)" font-size="13" font-weight="500">"1" Free Point A</text>
+                <text x="86" y="73" text-anchor="middle" fill="var(--text-muted)" font-family="monospace" font-size="11">constraint: Free</text>
+
+                <rect x="20" y="96" width="132" height="44" rx="8" fill="var(--bg-elevated)" stroke="#D63628" stroke-width="1.4"/>
+                <text x="86" y="115" text-anchor="middle" fill="var(--text-primary)" font-size="13" font-weight="500">"2" Free Point B</text>
+                <text x="86" y="131" text-anchor="middle" fill="var(--text-muted)" font-family="monospace" font-size="11">constraint: Free</text>
+
+                <rect x="20" y="154" width="132" height="44" rx="8" fill="var(--bg-elevated)" stroke="#D63628" stroke-width="1.4"/>
+                <text x="86" y="173" text-anchor="middle" fill="var(--text-primary)" font-size="13" font-weight="500">"3" Free Point C</text>
+                <text x="86" y="189" text-anchor="middle" fill="var(--text-muted)" font-family="monospace" font-size="11">constraint: Free</text>
+
+                
+                <rect x="228" y="64" width="156" height="52" rx="8" fill="var(--bg-surface)" stroke="#184F95" stroke-width="1.5"/>
+                <text x="306" y="85" text-anchor="middle" fill="var(--text-primary)" font-size="13" font-weight="500">"5" Segment AB</text>
+                <text x="306" y="103" text-anchor="middle" fill="#184F95" font-family="monospace" font-size="11">parents: {p0:"1", p1:"2"}</text>
+
+                
+                <rect x="434" y="118" width="164" height="52" rx="8" fill="var(--bg-surface)" stroke="#0D7A5F" stroke-width="1.5"/>
+                <text x="516" y="139" text-anchor="middle" fill="var(--text-primary)" font-size="13" font-weight="500">"9" Perp CH</text>
+                <text x="516" y="157" text-anchor="middle" fill="#0D7A5F" font-family="monospace" font-size="11">parents: {p0:"3", line:"5"}</text>
+
+                
+                <rect x="626" y="64" width="122" height="62" rx="8" fill="var(--bg-surface)" stroke="var(--text-primary)" stroke-width="1.5"/>
+                <text x="687" y="86" text-anchor="middle" fill="var(--text-primary)" font-size="13" font-weight="500">"10" Foot H</text>
+                <text x="687" y="103" text-anchor="middle" fill="var(--text-muted)" font-family="monospace" font-size="10.5">line0: "5"</text>
+                <text x="687" y="117" text-anchor="middle" fill="var(--text-muted)" font-family="monospace" font-size="10.5">line1: "9"</text>
+
+                
+                <path d="M 152 60 C 190 60, 190 80, 224 80" stroke="var(--text-muted)" stroke-width="1.4" marker-end="url(#arr-dag)"/>
+                <path d="M 152 118 C 190 118, 190 100, 224 100" stroke="var(--text-muted)" stroke-width="1.4" marker-end="url(#arr-dag)"/>
+                <path d="M 152 176 C 280 176, 350 156, 430 156" stroke="var(--text-muted)" stroke-width="1.4" marker-end="url(#arr-dag)"/>
+                <path d="M 384 102 C 410 102, 410 134, 430 134" stroke="var(--text-muted)" stroke-width="1.4" marker-end="url(#arr-dag)"/>
+                <path d="M 384 82 L 622 82" stroke="var(--text-muted)" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#arr-dag)"/>
+                <path d="M 598 144 C 612 144, 612 108, 622 108" stroke="var(--text-muted)" stroke-width="1.4" marker-end="url(#arr-dag)"/>
+              </svg>
+            </div>
+          </div>
+          <h2 class="doc-h2">Core Object Fields</h2>
+          <div class="table-box">
+            <table class="clean-table">
+              <thead>
+                <tr>
+                  <th>Field</th>
+                  <th>Type</th>
+                  <th>Required</th>
+                  <th>Role & Rules</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code class="ic">kind</code></td>
+                  <td>String</td>
+                  <td>Yes</td>
+                  <td>Determines the rendering layer and base prototype via <code class="ic">GSP.gObjects[kind]</code>.</td>
+                </tr>
+                <tr>
+                  <td><code class="ic">genus</code></td>
+                  <td>String</td>
+                  <td>Yes</td>
+                  <td>Semantic subtype controlling default colors and label behavior (e.g. <code class="ic">Segment</code>, <code class="ic">Ray</code>, or <code class="ic">Line</code> under <code class="ic">Straight</code>).</td>
+                </tr>
+                <tr>
+                  <td><code class="ic">constraint</code></td>
+                  <td>String</td>
+                  <td>Yes</td>
+                  <td>Geometric constraint solver registered under <code class="ic">GSP.gConstraints[constraint]</code>.</td>
+                </tr>
+                <tr>
+                  <td><code class="ic">parents</code></td>
+                  <td>Object</td>
+                  <td>By constraint</td>
+                  <td>Named parent-role map with fixed keys (e.g. <code class="ic">{"p0", "line"}</code> for a perpendicular), pointing to parent ID strings.</td>
+                </tr>
+                <tr>
+                  <td><code class="ic">geom</code></td>
+                  <td>Object</td>
+                  <td>Free/DOM only</td>
+                  <td>Required for free points, measures, text, and buttons (<code class="ic">{"loc": {"x": 200, "y": 300}}</code>). Dependent objects are computed automatically.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        `
+      },
+
+      "coordinates": {
+        breadcrumb: "Core Data Model › Coordinates",
+        title: "Pixel Coordinates & Units",
+        lead: "Canvas coordinates use a top-left pixel origin, while physical length measures and rotation angles follow fixed conversion constants.",
+        html: `
+          
+          <div class="diagram-card">
+            <div class="diagram-card-head">
+              <span>Diagram · Screen Pixel Coordinates, Scale & Radian Rotation</span>
+              <span style="font-family:var(--font-mono);font-size:12px;">Top-Left Origin</span>
+            </div>
+            <div class="diagram-card-body">
+              <svg width="720" height="235" viewBox="0 0 720 235" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <marker id="arr-axis" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                    <path d="M 1 2 L 8 5 L 1 8" fill="none" stroke="#184F95" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                  </marker>
+                </defs>
+                
+                <rect x="44" y="34" width="340" height="176" rx="8" fill="var(--bg-elevated)" stroke="var(--border-hairline)" stroke-width="1.3"/>
+                
+                <line x1="44" y1="34" x2="404" y2="34" stroke="#184F95" stroke-width="1.8" marker-end="url(#arr-axis)"/>
+                <text x="412" y="38" fill="#184F95" font-family="monospace" font-size="13" font-weight="600">+x</text>
+                
+                <line x1="44" y1="34" x2="44" y2="224" stroke="#184F95" stroke-width="1.8" marker-end="url(#arr-axis)"/>
+                <text x="36" y="234" fill="#184F95" font-family="monospace" font-size="13" font-weight="600">+y (downward)</text>
+                
+                <circle cx="44" cy="34" r="4.5" fill="#D63628"/>
+                <text x="12" y="22" fill="#D63628" font-family="monospace" font-size="12" font-weight="600">(0, 0)</text>
+
+                
+                <line x1="224" y1="34" x2="224" y2="132" stroke="var(--text-muted)" stroke-width="1.2" stroke-dasharray="4 3"/>
+                <line x1="44" y1="132" x2="224" y2="132" stroke="var(--text-muted)" stroke-width="1.2" stroke-dasharray="4 3"/>
+                <circle cx="224" cy="132" r="4.5" fill="#D63628"/>
+                <text x="234" y="136" fill="var(--text-primary)" font-family="monospace" font-size="12.5" font-weight="500">loc: { x: 220, y: 110 }</text>
+                <text x="126" y="26" fill="var(--text-muted)" font-family="monospace" font-size="11.5">x = 220 px</text>
+                <text x="52" y="88" fill="var(--text-muted)" font-family="monospace" font-size="11.5">y = 110 px</text>
+
+                
+                <line x1="68" y1="184" x2="153" y2="184" stroke="#0D7A5F" stroke-width="2"/>
+                <line x1="68" y1="178" x2="68" y2="190" stroke="#0D7A5F" stroke-width="1.6"/>
+                <line x1="153" y1="178" x2="153" y2="190" stroke="#0D7A5F" stroke-width="1.6"/>
+                <text x="163" y="188" fill="#0D7A5F" font-family="monospace" font-size="12">3 cm ≈ 85.04 px (1 cm ≈ 28.35 px)</text>
+
+                
+                <rect x="460" y="34" width="234" height="176" rx="8" fill="var(--bg-elevated)" stroke="var(--border-hairline)" stroke-width="1.3"/>
+                <text x="577" y="58" text-anchor="middle" fill="var(--text-primary)" font-size="13" font-weight="500">Rotate Angle Convention</text>
+                <circle cx="577" cy="134" r="44" stroke="var(--border-hairline)" stroke-width="1.3" stroke-dasharray="3 3"/>
+                <line x1="577" y1="134" x2="621" y2="134" stroke="var(--text-muted)" stroke-width="1.4"/>
+                <line x1="577" y1="134" x2="577" y2="90" stroke="#184F95" stroke-width="1.6"/>
+                <path d="M 605 134 A 28 28 0 0 0 577 106" stroke="#D63628" stroke-width="1.8" fill="none"/>
+                <circle cx="577" cy="134" r="3.5" fill="var(--text-primary)"/>
+                <text x="626" y="138" fill="var(--text-muted)" font-family="monospace" font-size="11.5">0</text>
+                <text x="556" y="83" fill="#184F95" font-family="monospace" font-size="11.5">+π/2 (90°)</text>
+                <text x="577" y="196" text-anchor="middle" fill="var(--text-muted)" font-size="11.5">Positive radians = counterclockwise</text>
+              </svg>
+            </div>
+          </div>
+          <h2 class="doc-h2">Length & Angle Conversions</h2>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>Conversion Constants</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="Copy code"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">1 inch = 72 pixels
+1 cm   = 72 / 2.54 ≈ 28.346456692913385 pixels
+
+// Rotate and polar Translate constraints require radians:
+180° = 3.141592653589793
+90°  = 1.5707963267948966</pre>
+          </div>
+        `
+      },
+
+      "styles": {
+        breadcrumb: "Core Data Model › Styles",
+        title: "Visual Styles & Layers",
+        lead: "Configure colors, stroke widths, line styles, measurement precision, label offsets, and visibility via each object's style dictionary.",
+        html: `
+          <div class="hairline-callout">
+            <svg class="icon" style="margin-top:3px;"><use href="#ic-info"/></svg>
+            <div><strong>Performance tip</strong>: For infinite straight lines (<code class="ic">Line</code>, <code class="ic">Perpendicular</code>, <code class="ic">Parallel</code>), prefer light thin solid strokes (<code class="ic">"line-style": "solid"</code>). Dense <code class="ic">"dotted"</code> dashes on infinite lines can cause GPU path tessellation lag during dragging in some browsers.</div>
+          </div>
+
+          <h2 class="doc-h2">Common style Properties</h2>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>JSON · style Dictionary</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="Copy code"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">"style": {
+  "color": "navy",                   // CSS color name, hex, or "rgb(200,220,255)"
+  "hidden": false,                   // true hides helper objects while keeping them active in the solver
+  "width": 2,                        // Stroke width in pixels
+  "line-style": "solid",             // "solid" | "dashed" | "dotted"
+  "radius": 4,                       // Point radius in pixels
+  "font-size": 16,                   // Font size for measures/text (px)
+  "precision": 2,                    // Decimal places for measures/calculations
+  "nameOrigin": "namedFromTemplate", // "namedFromTemplate" | "namedFromLabel" | "noVisibleName"
+  "inner-radius": 28,                // AngleMarker arc radius (px)
+  "tick-mark-style": "Crossbar",     // PathMarker style: "Crossbar" | "OpenArrow" | "SolidArrow"
+  "strokes": 2,                      // Arc count or tick count (1-4)
+  "label": {
+    "showLabel": true,
+    "labelOffsetX": -15,
+    "labelOffsetY": 15
+  }
+}</pre>
+          </div>
+        `
+      },
+
+      "guide-euclidean": {
+        breadcrumb: "Construction Guides › Points, Lines & Intersections",
+        title: "Points, Lines & Intersections",
+        lead: "Standard recipes for free points, segments, rays, lines, perpendiculars, parallels, angle bisectors, midpoints, points on paths, and all four intersection types.",
+        demoPreset: "euclideanPure",
+        demoCaption: "Drag red vertices A, B, or C to see perpendiculars, parallels, midpoint M, and the angle bisector update live",
+        html: `
+          <div class="hairline-callout">
+            <svg class="icon" style="margin-top:3px;"><use href="#ic-info"/></svg>
+            <div><strong>How to use these snippets</strong>: Place the entries below inside <code class="ic">pages[0].objects</code> of the minimal skeleton (ensuring parent IDs appear earlier). Note that in <code class="ic">AngleBisector</code>, the middle key <code class="ic">"B"</code> is the vertex of ∠ABC.</div>
+          </div>
+
+          <h2 class="doc-h2">1. Segments, Perpendiculars, Parallels & Angle Bisectors</h2>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>JSON · Straight Constructions</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="Copy code"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">"5": {
+  "kind": "Straight", "genus": "Segment", "constraint": "Segment",
+  "parents": { "p0": "1", "p1": "2" }, "style": { "color": "navy", "width": 2 }
+},
+"9": {
+  "kind": "Straight", "genus": "Perpendicular", "constraint": "Perpendicular",
+  "parents": { "p0": "3", "line": "5" }, "style": { "color": "green", "line-style": "dashed" }
+},
+"11": {
+  "kind": "Straight", "genus": "Parallel", "constraint": "Parallel",
+  "parents": { "p0": "3", "line": "5" }, "style": { "color": "teal", "line-style": "dotted" }
+},
+"12": {
+  "kind": "Straight", "genus": "Bisector", "constraint": "AngleBisector",
+  "parents": { "A": "2", "B": "1", "C": "3" }, "style": { "color": "orange", "width": 1.5 }
+}</pre>
+          </div>
+
+          <h2 class="doc-h2">2. Midpoints, Points on Paths & Intersections</h2>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>JSON · Derived Points & Intersections</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="Copy code"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">// Segment midpoint
+"8": { "kind": "Point", "genus": "Midpoint", "constraint": "Midpoint", "parents": { "path": "5" }, "label": "M" },
+// Point on path (value in [0, 1])
+"9": { "kind": "Point", "genus": "PointOnPath", "constraint": "PointOnPath", "parents": { "path": "5" }, "value": 0.35 },
+// Line-line intersection (parents must be line0, line1)
+"10": { "kind": "Point", "genus": "Intersection", "constraint": "Intersection", "parents": { "line0": "5", "line1": "9" }, "label": "H" },
+// Circle-line or circle-circle intersections (parents: circle, obj)
+"11": { "kind": "Point", "genus": "Intersection", "constraint": "Intersection1", "parents": { "circle": "13", "obj": "5" } },
+"12": { "kind": "Point", "genus": "Intersection", "constraint": "Intersection2", "parents": { "circle": "13", "obj": "5" } },
+// FunctionPlot or GeomLocus intersection (multiple points with identical parents auto-assign crossings 1, 2, ...)
+"13": { "kind": "Point", "genus": "Intersection", "constraint": "InterApproxPathStitchedPath_C", "parents": { "0": "9", "1": "12" }, "label": "P[1]" }</pre>
+          </div>
+        `
+      },
+
+      "guide-shapes": {
+        breadcrumb: "Construction Guides › Circles, Arcs, Polygons & Markers",
+        title: "Circles, Arcs, Polygons & Markers",
+        lead: "Construct circles, filled polygon interiors, arcs, circular sectors, and angle or tick markers.",
+        demoPreset: "equilateral",
+        demoCaption: "Equilateral triangle constructed from two circles; drag A or B to scale and rotate",
+        html: `
+          <h2 class="doc-h2">1. Circles & Polygons</h2>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>JSON · Circles & Polygons</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="Copy code"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">"3": {
+  "kind": "Circle", "genus": "Circle", "constraint": "CircleFromTwoPoints",
+  "parents": { "p0": "1", "p1": "2" }, "style": { "color": "#184F95", "width": 1.5 }
+},
+"4": {
+  "kind": "Circle", "genus": "Circle", "constraint": "CircleFromTwoPoints",
+  "parents": { "p0": "2", "p1": "1" }, "style": { "color": "#0D7A5F", "line-style": "dashed" }
+},
+"5": {
+  "kind": "Point", "genus": "Intersection", "constraint": "Intersection1",
+  "parents": { "circle": "3", "obj": "4" }, "label": "C"
+},
+"6": {
+  "kind": "Polygon", "genus": "Triangle", "constraint": "PolygonFromPoints",
+  "parents": { "0": "1", "1": "2", "2": "5" }, "style": { "color": "rgb(225,236,252)", "layerOrder": 0 }
+}</pre>
+          </div>
+
+          <h2 class="doc-h2">2. Arcs, Sectors & Angle Markers</h2>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>JSON · ArcOnCircle / Arc3Points / ArcSector / AngleMarker</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="Copy code"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">// 1. Arc on circle 3 (counterclockwise from p0 to p1)
+"10": {
+  "kind": "Arc", "genus": "Arc", "constraint": "ArcOnCircle",
+  "parents": { "circle": "3", "p0": "7", "p1": "8" }, "style": { "color": "#D63628", "width": 2.5 }
+},
+// 2. Arc through three points (p0 -> p1 -> p2)
+"11": {
+  "kind": "Arc", "genus": "Arc", "constraint": "Arc3Points",
+  "parents": { "p0": "1", "p1": "5", "p2": "2" }, "style": { "color": "#184F95", "width": 2 }
+},
+// 3. Circular sector interior (parent: arc 10)
+"12": {
+  "kind": "ArcInterior", "genus": "ArcSector", "constraint": "ArcSector",
+  "parents": { "arc": "10" }, "style": { "color": "rgb(254,232,200)", "layerOrder": 0 }
+},
+// 4. Angle marker (p1 is the vertex)
+"13": {
+  "kind": "AngleMarker", "genus": "AngleMarker", "constraint": "AngleMarker_Simple",
+  "parents": { "p0": "5", "p1": "1", "p2": "2" }, "style": { "color": "#184F95", "inner-radius": 26, "strokes": 1 }
+}</pre>
+          </div>
+        `
+      },
+
+      "guide-measures": {
+        breadcrumb: "Construction Guides › Measures & Expressions",
+        title: "Measures & Expressions",
+        lead: "Measure lengths, distances, angles, areas, ratios, coordinates, and slopes dynamically, and reference parent values in calculations via @0, @1.",
+        demoPreset: "euclidean",
+        demoCaption: "Live angle and polygon area measurements in the top-left corner",
+        html: `
+          <h2 class="doc-h2">1. Measurements & Calculations</h2>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>JSON · Measures & Calculations</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="Copy code"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">"16": {
+  "kind": "Measure", "genus": "AngleMeasure", "constraint": "MeasurementAngle",
+  "parents": { "p0": "2", "p1": "1", "p2": "3" }, "geom": { "loc": { "x": 30, "y": 30 } },
+  "style": { "font-size": 16, "precision": 1, "nameOrigin": "namedFromTemplate" }
+},
+"17": {
+  "kind": "Measure", "genus": "DistanceMeasure", "constraint": "MeasurementLength",
+  "parents": { "path": "5" }, "geom": { "loc": { "x": 30, "y": 60 } },
+  "style": { "font-size": 16, "precision": 2, "nameOrigin": "namedFromTemplate" }
+},
+"19": {
+  "kind": "Expression", "genus": "ScalarMeasure", "constraint": "Calculation",
+  "parents": { "0": "17" }, "geom": { "loc": { "x": 30, "y": 90 } },
+  "expressionType": "UniMeasure_ExprType", "expression": "2*@0",
+  "style": { "font-size": 16, "precision": 2, "nameOrigin": "namedFromTemplate" }
+}</pre>
+          </div>
+
+          <h2 class="doc-h2">2. Editable Parameters & Composite Text</h2>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>JSON · Editable Parameter & CompositeText</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="Copy code"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">// Editable scalar parameter (double-click opens number pad; can be animated)
+"20": {
+  "kind": "Expression", "genus": "ScalarMeasure", "constraint": "Free",
+  "geom": { "loc": { "x": 30, "y": 125 } }, "value": 3, "label": "n",
+  "style": { "font-size": 16, "precision": 0, "nameOrigin": "namedFromLabel" }
+},
+// Composite text referencing parent measure 17
+"21": {
+  "kind": "Text", "genus": "Caption", "constraint": "CompositeText",
+  "parents": { "0": "17" }, "geom": { "loc": { "x": 30, "y": 160 } },
+  "text": "Segment length: ", "style": { "font-size": 15, "color": "#0B0B0B" }
+}</pre>
+          </div>
+
+          <h2 class="doc-h2">3. Built-In Expression Functions</h2>
+          <div class="table-box">
+            <table class="clean-table">
+              <thead><tr><th>Category</th><th>Examples</th></tr></thead>
+              <tbody>
+                <tr><td>Trigonometry</td><td><code class="ic">sin(@0)</code> · <code class="ic">cos(@0)</code> · <code class="ic">tan(@0)</code> · <code class="ic">asin(@0)</code> · <code class="ic">acos(@0)</code> · <code class="ic">atan(@0)</code></td></tr>
+                <tr><td>Powers, Roots & Logs</td><td><code class="ic">@0^2</code> · <code class="ic">sqrt(@0)</code> · <code class="ic">abs(@0)</code> · <code class="ic">ln(@0)</code> · <code class="ic">log(@0)</code></td></tr>
+                <tr><td>Rounding & Constants</td><td><code class="ic">trunc(@0)</code> · <code class="ic">round(@0)</code> · <code class="ic">sgn(@0)</code> · <code class="ic">pi</code> · <code class="ic">e</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+        `
+      },
+
+      "guide-functions": {
+        breadcrumb: "Construction Guides › Coordinate Systems, Functions & Intersections",
+        title: "Coordinate Systems, Functions & Intersections",
+        lead: "Build chained Cartesian coordinate systems, plot parameterized functions, and compute live intersections with lines, circles, or loci via InterApproxPathStitchedPath_C.",
+        demoPreset: "parabola",
+        demoCaption: "Drag red points A, B, or origin O to watch intersections P₁ and P₂ track the parabola dynamically",
+        html: `
+          <div class="hairline-callout">
+            <svg class="icon" style="margin-top:3px;"><use href="#ic-info"/></svg>
+            <div><strong>Multiple crossings</strong>: Declare multiple points with identical <code class="ic">constraint: "InterApproxPathStitchedPath_C"</code> and identical <code class="ic">parents</code>—the solver automatically assigns the 1st, 2nd, … crossings in object order. Since the Nov 19, 2026 build, tapping crossings directly in Web Sketchpad is enabled by default; to disable it on a page, set <code class="ic">window.GSPConfig.Intersections = { options: { tapPlotIntersections: false } }</code>.</div>
+          </div>
+
+          <h2 class="doc-h2">1. Coordinate System, Quadratic Plot & Dual Intersections</h2>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>JSON · CoordSys, FunctionPlot & Intersections</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="Copy code"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">"1": { "kind": "Point", "genus": "OriginPoint", "constraint": "Free", "geom": { "loc": { "x": 310, "y": 195 } }, "label": "O" },
+"2": { "kind": "Point", "genus": "UnitPoint", "constraint": "HorizontalUnitPoint", "parents": { "origin": "1" }, "value": 44.0, "style": { "hidden": true } },
+"3": { "kind": "Axis", "genus": "Axis", "constraint": "AxisInternalDist", "parents": { "origin": "1", "unitPoint": "2" }, "orientation": "horizontal", "label": "x", "style": { "selectable": false } },
+"4": { "kind": "Point", "genus": "UnitPoint", "constraint": "UnitPointInternalSquare", "parents": { "unitPoint": "2" }, "style": { "hidden": true } },
+"5": { "kind": "Axis", "genus": "Axis", "constraint": "AxisInternalDist", "parents": { "origin": "1", "unitPoint": "4" }, "orientation": "vertical", "label": "y", "style": { "selectable": false } },
+"6": { "kind": "CoordSys", "genus": "CoordSys", "constraint": "CoordSys", "parents": { "axisX": "3", "axisY": "5" }, "shape": "square", "style": { "grid": "gridlines", "selectable": false } },
+"7": { "kind": "Expression", "genus": "ScalarMeasure", "constraint": "Calculation", "parents": {}, "geom": { "loc": { "x": 18, "y": 20 } }, "expressionType": "UniMeasure_ExprType", "expression": "0.45", "label": "a", "style": { "nameOrigin": "namedFromLabel" } },
+"8": { "kind": "Expression", "genus": "Function", "constraint": "Function", "parents": { "0": "7" }, "geom": { "loc": { "x": 18, "y": 46 } }, "expressionType": "YofX_FunctionExprType", "functionExpr": { "notation": "function", "name": "f", "dependentVar": "y", "independentVar": "x" }, "expression": "@0*x^2-2", "label": "f" },
+"9": { "kind": "Sampler", "genus": "FunctionPlot", "constraint": "FunctionPlot", "parents": { "function": "8", "coordSys": "6" }, "numSamples": 180, "isDiscrete": false, "showEndpoints": true, "driverDomain": { "low": -6, "high": 6 }, "style": { "color": "#184F95", "width": 2.5 } },
+// Two dynamic crossings of parabola 9 and line 12 (bracket subscripts like P[1] render automatically)
+"13": { "kind": "Point", "genus": "Intersection", "constraint": "InterApproxPathStitchedPath_C", "parents": { "0": "9", "1": "12" }, "label": "P[1]" },
+"14": { "kind": "Point", "genus": "Intersection", "constraint": "InterApproxPathStitchedPath_C", "parents": { "0": "9", "1": "12" }, "label": "P[2]" }</pre>
+          </div>
+
+          <h2 class="doc-h2">2. Dynamic Plotted Points, Loci & Parametric Curves</h2>
+          <p class="doc-p">Use these three constructions for sine-wave tracings, conic section loci, and projected 3D wireframe models:</p>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>JSON · PlotMarkedXMarkedY / GeomLocus / ParametricCartesianCurvePlot</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="Copy code"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">// 1. Plot point from two measures/calculations (coordX, coordY) on CoordSys 6
+"20": {
+  "kind": "Point", "genus": "PlottedPoint", "constraint": "PlotMarkedXMarkedY",
+  "parents": { "coordSys": "6", "coordX": "15", "coordY": "16" }, "label": "Q"
+},
+// 2. Geometric locus (must list every intermediate drive-chain object + drivenObject as "0".."n" in parents; supports solid/dashed/dotted strokes)
+"21": {
+  "kind": "Sampler", "genus": "PointLocus", "constraint": "GeomLocus",
+  "parents": { "driverObject": "5", "drivenObject": "10", "domainObject": "3", "0": "6", "1": "7", "2": "8", "3": "9", "4": "10" },
+  "numSamples": 180, "isDiscrete": false, "driverDomain": { "low": 0, "high": 1 }, "style": { "color": "#D63628", "line-style": "solid", "width": 2.5 }
+},
+// 3. Parametric curve (xFunction = x(t), function = y(t))
+"22": {
+  "kind": "Sampler", "genus": "ParametricPlot", "constraint": "ParametricCartesianCurvePlot",
+  "parents": { "coordSys": "6", "xFunction": "23", "function": "24" },
+  "numSamples": 180, "driverDomain": { "low": 0, "high": 6.283185 }, "style": { "color": "#0D7A5F", "width": 2 }
+}</pre>
+          </div>
+        `
+      },
+
+      "guide-transforms": {
+        breadcrumb: "Construction Guides › Transforms & Fractal Iteration",
+        title: "Transforms & Fractal Iteration",
+        lead: "Apply reflections, glide reflections, rotations, dilations, translations, and multi-branch fractal iterations.",
+        demoPreset: "iteration",
+        demoCaption: "Two-branch fractal tree (map0 + map1, depth 5); drag trunk points A or B to transform the tree",
+        html: `
+          <h2 class="doc-h2">1. Reflections, Rotations, Dilations & Vector Translations</h2>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>JSON · Reflect / RotateMeasureAngle / DilateMeasureFactor / TranslateVector</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="Copy code"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">// 1. Reflection across mirror line
+"14": { "kind": "Point", "genus": "Point", "constraint": "Reflect", "parents": { "source": "3", "mirror": "5" }, "label": "C'" },
+// 2. Fixed-angle rotation (radians, e.g. π = 180°)
+"15": { "kind": "Point", "genus": "Point", "constraint": "Rotate", "parents": { "source": "10", "center": "1" }, "angle": 3.141592653589793 },
+// 3. Rotation by a dynamic angle measure or parameter
+"16": { "kind": "Point", "genus": "Point", "constraint": "RotateMeasureAngle", "parents": { "source": "10", "center": "1", "angle": "20" } },
+// 4. Dilation by a dynamic scalar measure or parameter
+"17": { "kind": "Point", "genus": "Point", "constraint": "DilateMeasureFactor", "parents": { "source": "10", "center": "1", "measure": "21" } },
+// 5. Translation by marked vector p0 -> p1
+"18": { "kind": "Polygon", "genus": "Triangle", "constraint": "TranslateVector", "parents": { "source": "4", "p0": "1", "p1": "2" } }</pre>
+          </div>
+
+          <h2 class="doc-h2">2. Two-Branch Fractals & Parametric Depth</h2>
+          <p class="doc-p">For branching fractals such as Pythagoras or binary trees, supply both <code class="ic">map0image0/1</code> and <code class="ic">map1image0/1</code> in <code class="ic">IterateMap</code>. To drive iteration depth dynamically from a parameter, use <code class="ic">IterateMapByParametricDepth</code> with a <code class="ic">"depth"</code> parent:</p>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>JSON · Two-Branch Fractal Tree (map0 + map1)</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="Copy code"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">"9": {
+  "kind": "Map", "genus": "Map", "constraint": "IterateMap",
+  "parents": {
+    "preimage0": "1", "preimage1": "2",
+    "map0image0": "2", "map0image1": "5",
+    "map1image0": "2", "map1image1": "6",
+    "0": "3"
+  },
+  "currentDepth": 5
+},
+"10": {
+  "kind": "IterateImage", "genus": "IterateImage", "constraint": "IterateImage",
+  "parents": { "source": "3", "map": "9" }, "style": { "color": "#0D7A5F", "width": 1.5 }
+}</pre>
+          </div>
+        `
+      },
+
+      "guide-buttons": {
+        breadcrumb: "Construction Guides › Action Buttons & Animation",
+        title: "Action Buttons & Animation",
+        lead: "Add hide/show toggles, continuous path animations, movement buttons, simultaneous presenters, autostart triggers, and case buttons.",
+        html: `
+          <h2 class="doc-h2">1. Hide/Show & Animate Buttons</h2>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>JSON · Hide/Show & Animate</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="Copy code"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">"30": {
+  "kind": "Button", "genus": "Action", "constraint": "ActionButtonToggleHideShow",
+  "parents": { "0": "9", "1": "10" }, "geom": { "loc": { "x": 28, "y": 390 } },
+  "label": "Show Construction", "messages": ["Hide Construction", "Show Construction"], "fade": true
+},
+"31": {
+  "kind": "Button", "genus": "Action", "constraint": "ActionButtonAnimate",
+  "parents": { "0": "9" }, "geom": { "loc": { "x": 180, "y": 390 } },
+  "label": "Animate Point P", "messages": ["Animate Point P"],
+  "animationStates": [{ "rate": 3, "timeInterval": 0, "repeat": true, "motionType": "both" }]
+}</pre>
+          </div>
+
+          <h2 class="doc-h2">2. Movement & Simultaneous Presentation Buttons</h2>
+          <p class="doc-p">Use <code class="ic">ActionButtonMove</code> to glide points smoothly to target locations, and <code class="ic">ActionButtonPresentSimultaneously</code> to fire multiple action buttons together:</p>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>JSON · ActionButtonMove & ActionButtonPresentSimultaneously</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="Copy code"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">// Move button: pairs of [movingPoint, targetPoint] in parents
+"32": {
+  "kind": "Button", "genus": "Action", "constraint": "ActionButtonMove",
+  "parents": { "0": "1", "1": "2" }, "geom": { "loc": { "x": 28, "y": 430 } },
+  "label": "Unfold", "speed": "medium"
+},
+// Simultaneous button: triggers all parent action buttons at once
+"33": {
+  "kind": "Button", "genus": "Action", "constraint": "ActionButtonPresentSimultaneously",
+  "parents": { "0": "31", "1": "32" }, "geom": { "loc": { "x": 140, "y": 430 } },
+  "label": "Play All"
+}</pre>
+          </div>
+
+          <h2 class="doc-h2">3. Autostart & Case Buttons</h2>
+          <div class="table-box">
+            <table class="clean-table">
+              <thead>
+                <tr><th>Mechanism</th><th>Label Convention</th><th>Runtime Behavior</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Autostart on Page Load</td>
+                  <td><code class="ic">"label": "autostart: Reset"</code></td>
+                  <td>Automatically presses the button whenever the page loads or is navigated to.</td>
+                </tr>
+                <tr>
+                  <td>Case Presentation</td>
+                  <td>Hide/Show button labeled <code class="ic">"_Case:Step"</code></td>
+                  <td>First parent is a value in <code class="ic">1..n</code>; remaining parents are action buttons. Pressing activates only the k-th child button.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        `
+      },
+
+      "web-widgets": {
+        breadcrumb: "Web Integration › Embedding & Widget Preferences",
+        title: "Embedding & Widget Preferences",
+        lead: "Mount multiple sketches on a single webpage, enable floating editing widgets, and configure per-sketch/per-page preferences in HTML.",
+        html: `
+          
+          <div class="diagram-card">
+            <div class="diagram-card-head">
+              <span>Diagram · .sketch_container Host Page Layout</span>
+              <span style="font-family:var(--font-mono);font-size:12px;">HTML Layout</span>
+            </div>
+            <div class="diagram-card-body">
+              <svg width="680" height="225" viewBox="0 0 680 225" fill="none" xmlns="http://www.w3.org/2000/svg">
+                
+                <rect x="20" y="14" width="640" height="196" rx="10" fill="var(--bg-elevated)" stroke="var(--text-muted)" stroke-width="1.4" stroke-dasharray="5 3"/>
+                <text x="36" y="36" fill="var(--text-primary)" font-family="monospace" font-size="12.5" font-weight="600">&lt;div class="sketch_container"&gt;</text>
+
+                
+                <rect x="44" y="48" width="592" height="36" rx="7" fill="var(--bg-surface)" stroke="#0D7A5F" stroke-width="1.3"/>
+                <text x="60" y="70" fill="#0D7A5F" font-family="monospace" font-size="12">.page_toggle.p_1</text>
+                <text x="205" y="70" fill="var(--text-secondary)" font-size="12.5">Page-synced narrative text and navigation links (optional)</text>
+
+                
+                <rect x="44" y="94" width="592" height="58" rx="7" fill="var(--bg-surface)" stroke="#184F95" stroke-width="1.6"/>
+                <text x="60" y="118" fill="#184F95" font-family="monospace" font-size="12.5" font-weight="600">.sketch_canvas [data-var="mysketch"]</text>
+                <text x="60" y="138" fill="var(--text-secondary)" font-size="12.5">Interactive sketch canvas (engine mounts 3 canvas layers and tools)</text>
+
+                
+                <rect x="44" y="162" width="592" height="34" rx="7" fill="var(--bg-surface)" stroke="var(--text-muted)" stroke-width="1.3"/>
+                <text x="60" y="183" fill="var(--text-primary)" font-family="monospace" font-size="12">.wsp-button-bar</text>
+                <rect x="200" y="169" width="110" height="20" rx="4" fill="var(--bg-elevated)" stroke="var(--border-hairline)"/>
+                <text x="255" y="183" text-anchor="middle" fill="var(--text-muted)" font-size="11">.util-menu-btn</text>
+                <text x="326" y="183" fill="var(--text-secondary)" font-size="12">Undo / Redo · Reset · Widgets · Page Controller</text>
+              </svg>
+            </div>
+          </div>
+          <h2 class="doc-h2">1. Mounting a Full Container with Widgets</h2>
+          <p class="doc-p">Include the widget scripts and stylesheet in <code class="ic">&lt;head&gt;</code>, and wrap each sketch inside <code class="ic">.sketch_container</code> with an optional <code class="ic">.wsp-button-bar</code>:</p>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>HTML · Widgets & Button Bar</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="Copy code"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">&lt;!-- Script loading order in &lt;head&gt; --&gt;
+&lt;script src="./js/jquery-2.1.0.min.js"&gt;&lt;/script&gt;
+&lt;script src="./js/wsp.js"&gt;&lt;/script&gt;
+&lt;script src="./widgets/jquery.tiny-draggable.js"&gt;&lt;/script&gt;
+&lt;link rel="stylesheet" href="./widgets/widgets.css" /&gt;
+&lt;script src="./widgets/widgets.js"&gt;&lt;/script&gt;
+&lt;script src="./js/wsp-runner.js"&gt;&lt;/script&gt;
+
+&lt;!-- Sketch container in &lt;body&gt; --&gt;
+&lt;div class="sketch_container"&gt;
+  &lt;div class="sketch_canvas" data-var="sketches/triangle"&gt;&lt;/div&gt;
+  &lt;div class="wsp-button-bar"&gt;
+    &lt;div class="util-menu-btn"&gt;&lt;/div&gt; &lt;!-- Include for Download/Upload utility menu --&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</pre>
+          </div>
+
+          <h2 class="doc-h2">2. Configuring Widgets, Tools & Utility Commands in HTML</h2>
+          <p class="doc-p">Control widgets, tools, and utility commands across multiple sketches from a single script block using <code class="ic">WSP.PREF.setWebPagePrefs()</code>:</p>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>JavaScript · WSP.PREF.setWebPagePrefs</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="Copy code"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">&lt;script&gt;
+  WSP.PREF.setWebPagePrefs([
+    // Turn off all widgets and utility commands globally
+    { pages: "none" },
+    // Enable Style widget on pages 1, 3, and 5 of sketch2
+    { category: "widget", name: "style", sketches: "sketch2", pages: "1, 3, 5" },
+    // Enable Visibility widget on all pages of sketch3 and sketch4
+    { category: "widget", name: "visibility", sketches: "sketch3, sketch4", pages: "all" },
+    // Show Segment and Circle tools only on pages 2 and 3 of sketch2
+    { category: "tool", name: "Segment, Circle", sketches: "sketch2", pages: "2, 3" },
+    // Allow Download only (no Upload) on sketch4
+    { category: "util", name: "download", sketches: "sketch4" }
+  ]);
+&lt;/script&gt;</pre>
+          </div>
+
+          <h2 class="doc-h2">3. Common Author Preferences</h2>
+          <div class="table-box">
+            <table class="clean-table">
+              <thead>
+                <tr><th>Preference Key</th><th>Values</th><th>Effect</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code class="ic">enableScrolling</code></td><td><code class="ic">none</code> / <code class="ic">all</code> / page list</td><td>Disables internal sketch scrolling so browser pinch-zoom and panning stay active.</td></tr>
+                <tr><td><code class="ic">showWidgetPanelOnPageStart</code></td><td><code class="ic">true</code> / <code class="ic">false</code></td><td>Controls whether the floating Widget Controller starts hidden until toggled.</td></tr>
+                <tr><td><code class="ic">buttonBar</code></td><td><code class="ic">true</code> / <code class="ic">false</code></td><td>Removes the entire bottom button bar (undo/redo, reset, widgets, page controller).</td></tr>
+                <tr><td><code class="ic">traceWidget</code></td><td><code class="ic">all</code> / <code class="ic">none</code> / page list</td><td>Enables the Trace Widget (since Nov 19, 2026, includes a <code class="ic">Construct Locus</code> button to construct point, line, circle, and polygon loci or envelopes directly in the browser, with keyboard and screen-reader support).</td></tr>
+                <tr><td><code class="ic">pageTraces</code> / <code class="ic">undoRedoTraces</code></td><td><code class="ic">true</code> / <code class="ic">false</code></td><td>Preserves traces across page switches and includes traces in undo/redo history.</td></tr>
+                <tr><td><code class="ic">labelWidget</code></td><td><code class="ic">all</code> / <code class="ic">none</code> / page list</td><td>Controls Text Widget availability per page (the panel was renamed Text Widget, while the preference key remains compatible).</td></tr>
+              </tbody>
+            </table>
+          </div>
+        `
+      },
+
+      "web-multipage": {
+        breadcrumb: "Web Integration › Multi-Page Sync & Reset",
+        title: "Multi-Page Sync & Reset",
+        lead: "Synchronize host webpage text with sketch page changes, trigger page navigation from links, and bind an in-sketch Reset button.",
+        html: `
+          <h2 class="doc-h2">1. Syncing Host Webpage Content with Sketch Pages</h2>
+          <p class="doc-p">Place <code class="ic">.page_toggle</code> elements inside the same <code class="ic">.sketch_container</code> as <code class="ic">.sketch_canvas</code> (with widget scripts loaded) to show or hide copy per page:</p>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>HTML · page_toggle & PAGENUM.gotoPage</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="Copy code"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">&lt;div class="sketch_container"&gt;
+  &lt;div class="page_toggle p_1"&gt;
+    &lt;p&gt;Page 1 activity: drag the vertices to explore the orthocenter. &lt;a onclick="PAGENUM.gotoPage(this, 2);"&gt;Go to page 2 →&lt;/a&gt;&lt;/p&gt;
+  &lt;/div&gt;
+  &lt;div class="page_toggle p_2 p_3"&gt;
+    &lt;p&gt;This note appears only on page 2 or page 3 of the sketch.&lt;/p&gt;
+  &lt;/div&gt;
+  &lt;div class="sketch_canvas" data-var="mysketch"&gt;&lt;/div&gt;
+&lt;/div&gt;</pre>
+          </div>
+
+          <h2 class="doc-h2">2. In-Sketch Reset Button</h2>
+          <p class="doc-p">Add a button labeled <code class="ic">"Reset Sketch"</code> inside the sketch, then listen for <code class="ic">PressButton.WSP</code> and call <code class="ic">ctx.document.undo("all")</code> to reset the current page while preserving redo history:</p>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>JavaScript · Reset Current Page via Event</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="Copy code"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">&lt;script&gt;
+  $(function () {
+    $(".sketch_container").on("PressButton.WSP", function (ev, ctx) {
+      if (ctx.gobj.label === "Reset Sketch") {
+        ctx.document.undo("all");
+      }
+    });
+  });
+&lt;/script&gt;</pre>
+          </div>
+        `
+      },
+
+      "web-tools-a11y": {
+        breadcrumb: "Web Integration › Polygon Tools & Accessibility",
+        title: "Polygon Tools & Accessibility",
+        lead: "Author arbitrary-sided polygon tools with repeat/toolRepeat, and customize keyboard Tab order and screen-reader announcements with hidden action buttons.",
+        html: `
+          <h2 class="doc-h2">1. Arbitrary-Sided Polygon Tools</h2>
+          <p class="doc-p">Author polygon tools as triangle tools and label per-vertex or per-side objects <code class="ic">repeat</code> (exported as <code class="ic">"toolRepeat": true</code>). The tool automatically adapts to any n-gon or lets users construct polygons vertex by vertex.</p>
+          <div class="table-box">
+            <table class="clean-table">
+              <thead>
+                <tr><th>Tool Type</th><th>Vertices</th><th>Sides</th><th>Interior</th><th>Image Objects</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Transformations</td><td>unlabeled</td><td><code class="ic">repeat</code></td><td><code class="ic">constructible1</code></td><td>image points & sides: <code class="ic">repeat</code></td></tr>
+                <tr><td>Area / Perimeter</td><td>unlabeled</td><td><code class="ic">repeat</code></td><td><code class="ic">constructible1</code></td><td>—</td></tr>
+                <tr><td>Polygon Tool</td><td><code class="ic">given1, given2, given3</code></td><td><code class="ic">repeat</code></td><td><code class="ic">constructible4</code></td><td>—</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 class="doc-h2">2. Keyboard & Screen-Reader Accessibility Conventions</h2>
+          <p class="doc-p">Web Sketchpad natively supports Tab navigation, arrow-key dragging (1/10/100 px), and screen readers. To customize focus order or spoken output, add a hidden <code class="ic">ActionButtonToggleHideShow</code> button with one of these reserved names:</p>
+          <div class="table-box">
+            <table class="clean-table">
+              <thead>
+                <tr><th>Hidden Button Label</th><th>Parents List</th><th>Runtime Behavior</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code class="ic">WSP-TABS</code></td><td>Ordered list of focusable objects</td><td>Replaces default construction order so Tab visits only the listed objects in sequence.</td></tr>
+                <tr><td><code class="ic">WSP-SAYS</code></td><td>Measures, calculations, or captions</td><td>Announces only the listed objects in order whenever their values change.</td></tr>
+                <tr><td><code class="ic">WSP-ON-BUTTON-DOWN-SAYS</code></td><td>Action button(s) + captions/measures</td><td>Reads the associated captions and measures when any parent button is pressed.</td></tr>
+                <tr><td><code class="ic">WSP-ON-BUTTON-UP-SAYS</code></td><td>Action button(s) + captions/measures</td><td>Reads the associated captions and measures when a parent button pops back up.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        `
+      },
+
+      "ref-kinds": {
+        breadcrumb: "Reference & Sandbox › Object Kinds",
+        title: "Object Kinds",
+        lead: "Complete runtime inventory of registered geometric object kinds, including inheritance, desktop kernel references, and specialized properties.",
+        html: `<div id="kindsTableMount"></div>`
+      },
+
+      "ref-constraints": {
+        breadcrumb: "Reference & Sandbox › Constraint Reference",
+        title: "Constraint Reference",
+        lead: "Complete runtime catalog of registered geometric constraints (updated for Q4 2026, including InterApproxPathStitchedPath_C for function plots and loci).",
+        html: `
+          <div class="hairline-callout" style="margin-top:0;">
+            <svg class="icon" style="margin-top:3px;"><use href="#ic-info"/></svg>
+            <div><strong>How to read entries</strong>: The heading is the JSON <code class="ic">constraint</code> string; badges show supported <code class="ic">kind</code> values; Parent Keys and Parameters list the exact keys required inside <code class="ic">parents</code>.</div>
+          </div>
+          <input type="text" class="dict-search-input" id="constraintFilterInput" placeholder="Filter by constraint name, kernel ref, or description (e.g. InterApprox, Perpendicular, Rotate, Measure, Locus, Iterate)..." oninput="filterConstraintsList()" />
+          <div class="filter-pills-row" id="constraintCategoryPills"></div>
+          <div style="font-size:13.5px;color:var(--text-muted);margin-bottom:14px;" id="constraintCountStatus"></div>
+          <div id="constraintsListMount"></div>
+        `
+      },
+
+      "playground": {
+        breadcrumb: "Reference & Sandbox › Interactive Sandbox",
+        title: "Interactive Sandbox",
+        lead: "Edit Web Sketch JSON on the left and press Ctrl + Enter or Run to render and drag red free points on the right.",
+        html: `
+          <div class="pg-workbench">
+            <div class="pg-toolbar">
+              <div class="pg-toolbar-left">
+                <span class="pg-select-label">Preset</span>
+                <select class="pg-select" id="pgPresetSelect" onchange="loadPlaygroundPreset(this.value)">
+                  <option value="parabola">Parabola & Line Intersections</option>
+                  <option value="euclideanPure">Triangle Orthocenter & Bisector</option>
+                  <option value="euclidean">Triangle Angle & Area Measures</option>
+                  <option value="equilateral">Equilateral Triangle (Two Circles)</option>
+                  <option value="iteration">Two-Branch Fractal Tree</option>
+                  <option value="minimal">Minimal Skeleton & Segment</option>
+                </select>
+              </div>
+              <div class="pg-toolbar-right">
+                <button class="btn-outline-sm" onclick="formatPlaygroundJson()" style="padding:6px 12px;font-size:13.5px;">Format</button>
+                <button class="btn-outline-sm" onclick="copyPlaygroundJson(this)" style="padding:6px 12px;font-size:13.5px;">Copy JSON</button>
+                <button class="btn-solid-sm" id="pgRunBtn" onclick="runPlaygroundSketch()" style="padding:6px 14px;font-size:13.5px;">
+                  <svg class="icon" style="width:14px;height:14px;"><use href="#ic-play"/></svg>
+                  <span>Run</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="pg-split">
+              <div class="pg-editor-pane">
+                <div class="pg-pane-head">
+                  <span>JSON Source</span>
+                  <span style="font-family:var(--font-mono);font-size:12px;">Ctrl + Enter to run</span>
+                </div>
+                <textarea class="playground-textarea" id="playgroundTextarea" spellcheck="false" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();runPlaygroundSketch();}"></textarea>
+                <div class="pg-statusbar">
+                  <span id="playgroundStatus">Ready</span>
+                  <span id="playgroundCanvasMeta" style="font-family:var(--font-mono);"></span>
+                </div>
+              </div>
+
+              <div class="pg-stage-pane">
+                <div class="pg-pane-head" style="background:#F8F8F6;color:#52514E;">
+                  <span>Live Canvas (drag red vertices to test constraints)</span>
+                  <span style="font-family:var(--font-mono);font-size:12px;">WSP</span>
+                </div>
+                <div class="pg-stage-canvas-wrap">
+                  <div id="liveWspMount"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `
+      },
+
+      "llm-spec": {
+        breadcrumb: "Reference & Sandbox › Agent Skills",
+        title: "Agent Skills",
+        lead: "Provides a standard Agent Skills bundle that equips coding agents with the complete Web Sketchpad JSON grammar and verified runtime rules.",
+        html: `
+          <h2 class="doc-h2" style="margin-top:8px;">1. Installation</h2>
+          <p class="doc-p">Download and extract <a href="web-sketchpad-json-skill.zip" download><code class="ic">web-sketchpad-json-skill.zip</code></a>, then place the <code class="ic">web-sketchpad-json/</code> folder into your coding agent's skills directory (or browse <a href="skills/web-sketchpad-json/SKILL.md" target="_blank"><code class="ic">SKILL.md</code></a> and <a href="skills/web-sketchpad-json/references/wsp-schema.json" target="_blank"><code class="ic">references/wsp-schema.json</code></a> directly):</p>
+          <div class="table-box">
+            <table class="clean-table">
+              <thead><tr><th>Coding Agent</th><th>Skills Directory</th></tr></thead>
+              <tbody>
+                <tr><td>Project-scoped (recommended)</td><td><code class="ic">.agents/skills/web-sketchpad-json/</code></td></tr>
+                <tr><td>Claude Code</td><td><code class="ic">~/.claude/skills/web-sketchpad-json/</code></td></tr>
+                <tr><td>Codex / Cursor / Antigravity</td><td><code class="ic">~/.codex/skills/</code> or workspace <code class="ic">skills/</code> directory</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 class="doc-h2">2. Bundle Structure</h2>
+          <div class="doc-code-card">
+            <div class="doc-code-bar"><span>web-sketchpad-json/</span></div>
+            <pre class="doc-code-pre">web-sketchpad-json/
+├── SKILL.md                      # Triggers, core rules, minimal skeleton & high-frequency recipes
+└── references/
+    └── wsp-schema.json           # Complete runtime schema of all object kinds and constraints</pre>
+          </div>
+
+          <h2 class="doc-h2">3. SKILL.md Preview</h2>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>skills/web-sketchpad-json/SKILL.md</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="Copy all"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre" id="llmPromptPre"></pre>
+          </div>
+        `
+      }
+    };
+
+    // =========================================================================
+    // View Switching
+    // =========================================================================
+    let currentPageId = "home";
+    let currentConstraintCategory = "ALL";
+
+    const PAGE_ORDER = [
+      "intro", "quickstart", "troubleshooting",
+      "architecture", "coordinates", "styles",
+      "guide-euclidean", "guide-shapes", "guide-measures",
+      "guide-functions", "guide-transforms", "guide-buttons",
+      "web-widgets", "web-multipage", "web-tools-a11y",
+      "ref-kinds", "ref-constraints", "playground", "llm-spec"
+    ];
+
+    function buildPagerHtml(pageId) {
+      const idx = PAGE_ORDER.indexOf(pageId);
+      if (idx === -1) return "";
+      const prevId = idx > 0 ? PAGE_ORDER[idx - 1] : null;
+      const nextId = idx < PAGE_ORDER.length - 1 ? PAGE_ORDER[idx + 1] : null;
+      const prevCard = prevId
+        ? `<div class="pager-card prev" onclick="openInteriorPage('${prevId}')"><span class="pager-dir">← Previous</span><span class="pager-title">${PAGES[prevId].title}</span></div>`
+        : `<div></div>`;
+      const nextCard = nextId
+        ? `<div class="pager-card next" onclick="openInteriorPage('${nextId}')"><span class="pager-dir">Next →</span><span class="pager-title">${PAGES[nextId].title}</span></div>`
+        : `<div></div>`;
+      return `<div class="doc-pager">${prevCard}${nextCard}</div>`;
+    }
+
+    function openHomePortal() {
+      unmountLiveSketch("inlinePageLiveMount");
+      unmountLiveSketch("liveWspMount");
+      currentPageId = "home";
+      closeMobileDrawer();
+      document.body.classList.remove("mode-interior");
+      switchHeroCodeTab("live", document.querySelector(".code-tab-btn"));
+      if (window.location.hash) history.replaceState(null, "", window.location.pathname);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function openInteriorPage(pageId) {
+      unmountLiveSketch("heroLiveMount");
+      unmountLiveSketch("inlinePageLiveMount");
+      unmountLiveSketch("liveWspMount");
+      if (!PAGES[pageId]) pageId = "quickstart";
+      currentPageId = pageId;
+      closeMobileDrawer();
+      document.body.classList.add("mode-interior");
+
+      document.querySelectorAll(".docs-sidebar .sidebar-item").forEach(el => {
+        el.classList.toggle("active", el.getAttribute("data-page") === pageId);
+      });
+
+      const p = PAGES[pageId];
+      const demoHtml = p.demoPreset ? `
+        <div class="inline-live-demo">
+          <div class="inline-live-bar">
+            <span>${p.demoCaption || "Drag the red free points on the canvas to test live constraints"}</span>
+            <span style="font-family:var(--font-mono);font-size:12px;">Q4 2026</span>
+          </div>
+          <div class="inline-live-stage">
+            <div id="inlinePageLiveMount"></div>
+          </div>
+        </div>
+      ` : "";
+
+      const main = document.getElementById("docsMainArticle");
+      main.classList.toggle("is-playground", pageId === "playground");
+      main.innerHTML = `
+        <div class="docs-breadcrumb">${p.breadcrumb}</div>
+        <div class="docs-title-row">
+          <h1 class="docs-h1">${p.title}</h1>
+          <button class="copy-page-btn" onclick="copyCurrentPageMarkdown()" id="copyPageBtn">
+            <svg class="icon" style="width:15px;height:15px;"><use href="#ic-copy"/></svg>
+            <span>Copy page</span>
+          </button>
+        </div>
+        <div class="docs-lead">${p.lead}</div>
+        ${demoHtml}
+        <div id="docsBodyContent">${p.html}</div>
+        ${buildPagerHtml(pageId)}
+      `;
+
+      if (p.demoPreset && PRESET_SKETCHES[p.demoPreset]) {
+        mountLiveSketchTo("inlinePageLiveMount", "__INLINE_PAGE_SKETCH__", PRESET_SKETCHES[p.demoPreset]);
+      }
+      if (pageId === "ref-kinds") renderKindsReference();
+      if (pageId === "ref-constraints") initConstraintsExplorer();
+      if (pageId === "playground") loadPlaygroundPreset("parabola");
+      if (pageId === "llm-spec") populateLLMPromptPre();
+      if (window.location.hash !== "#" + pageId) history.replaceState(null, "", "#" + pageId);
+
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    // =========================================================================
+    // Kinds & Constraints Reference Renderers
+    // =========================================================================
+    function renderKindsReference() {
+      const mount = document.getElementById("kindsTableMount");
+      if (!window.WSP_RUNTIME_SCHEMA) return;
+      const kinds = Object.values(window.WSP_RUNTIME_SCHEMA.kinds);
+      const rows = kinds.map(k => `
+        <tr>
+          <td><code class="ic">${k.name}</code></td>
+          <td>${k.inherits ? `<code class="ic">${k.inherits}</code>` : "—"}</td>
+          <td>${k.gspKindRef ? `<code class="ic">${k.gspKindRef}</code>` : "—"}</td>
+          <td>${k.hasLabel ? "Yes" : "—"}</td>
+          <td>${k.properties.map(p => `<code class="ic">${p}</code>`).join(", ") || "—"}</td>
+          <td>${k.description}</td>
+        </tr>
+      `).join("");
+      mount.innerHTML = `
+        <div class="table-box">
+          <table class="clean-table">
+            <thead>
+              <tr><th>Kind</th><th>Inherits</th><th>Kernel Ref</th><th>Label</th><th>Properties</th><th>Description</th></tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function categorizeConstraint(name) {
+      if (/^(Segment|Ray|Line|Perpendicular|Parallel|AngleBisector|Straight)$/.test(name)) return "Straight Lines";
+      if (/^(Free|Midpoint|Intersection|InterApprox|PointOn|Plot|UnitPoint|PointTerminal)/.test(name)) return "Points & Intersections";
+      if (/^(Circle|Arc|Polygon|AngleMarker|PathMarker)/.test(name)) return "Circles, Polygons & Markers";
+      if (/^(Measurement|GeometricSlope|LinearEquation|QuadraticEquation|Multimeasure)/.test(name)) return "Measures & Equations";
+      if (/^(Calculation|Function|Parametric|Locus|GeomLocus|DriveChain)/.test(name)) return "Functions, Calc & Loci";
+      if (/^(Reflect|GlideReflect|Rotate|Dilate|Translate|Transform|CustomTransformed)/.test(name)) return "Transforms";
+      if (/^(Iterate|UserTabulation|CompositeText|Pegged|Colorize)/.test(name)) return "Iteration, Tables & Text";
+      if (/^(Axis|CoordSys)/.test(name)) return "Axes & CoordSys";
+      if (/^(ActionButton|Picture)/.test(name)) return "Buttons & Pictures";
+      return "Base & Other";
+    }
+
+    function initConstraintsExplorer() {
+      const categories = [
+        "ALL", "Points & Intersections", "Straight Lines", "Circles, Polygons & Markers",
+        "Measures & Equations", "Functions, Calc & Loci", "Transforms",
+        "Iteration, Tables & Text", "Axes & CoordSys", "Buttons & Pictures"
+      ];
+      const pillBar = document.getElementById("constraintCategoryPills");
+      if (!pillBar) return;
+      pillBar.classList.add("has-slider");
+      pillBar.innerHTML = `<div class="pill-slider-bg" aria-hidden="true"></div>` + categories.map(cat => `
+        <button class="cat-pill ${cat === currentConstraintCategory ? 'active' : ''}" data-cat="${cat}"
+          onclick="selectConstraintCategory('${cat}')">
+          ${cat === 'ALL' ? 'All' : cat}
+        </button>
+      `).join("");
+      requestAnimationFrame(() => syncConstraintPillSlider(true));
+      filterConstraintsList();
+    }
+
+    function filterConstraintsList() {
+      const q = (document.getElementById("constraintFilterInput")?.value || "").trim().toLowerCase();
+      const listEl = document.getElementById("constraintsListMount");
+      const statusEl = document.getElementById("constraintCountStatus");
+      if (!window.WSP_RUNTIME_SCHEMA) return;
+
+      const all = Object.values(window.WSP_RUNTIME_SCHEMA.constraints);
+      const filtered = all.filter(c => {
+        const cat = categorizeConstraint(c.name);
+        if (currentConstraintCategory !== "ALL" && cat !== currentConstraintCategory) return false;
+        if (!q) return true;
+        return (
+          c.name.toLowerCase().includes(q) ||
+          (c.gspRef && c.gspRef.toLowerCase().includes(q)) ||
+          (c.description && c.description.toLowerCase().includes(q)) ||
+          c.kinds.join(" ").toLowerCase().includes(q)
+        );
+      });
+
+      statusEl.textContent = `Showing ${filtered.length} of ${all.length} constraints`;
+
+      listEl.innerHTML = filtered.map(c => {
+        const parentKeys = Object.entries(c.parentsSpec || {}).filter(([k, v]) => !v.suppressed);
+        const bapKeys = c.bapEdges ? Object.entries(c.bapEdges).map(([k, v]) => `${k} (${v.edgeType})`) : [];
+        return `
+          <div class="c-item-card">
+            <div class="c-item-head">
+              <div>
+                <span class="c-item-title">${c.name}</span>
+                ${c.inherits ? `<span style="font-size:13px;color:var(--text-muted);margin-left:8px;">extends <code class="ic">${c.inherits}</code></span>` : ""}
+              </div>
+              <div class="trait-pills">
+                ${c.kinds.map(k => `<span class="trait-pill">kind: ${k}</span>`).join("")}
+                ${c.gspRef ? `<span class="trait-pill">${c.gspRef}</span>` : ""}
+              </div>
+            </div>
+            <div style="font-size:14.5px;color:var(--text-secondary);margin-bottom:8px;">
+              ${c.description || "Internal constraint base class."}
+            </div>
+            ${c.existenceRule ? `<div style="font-size:13px;color:var(--text-muted);margin-bottom:4px;">Existence: ${c.existenceRule}</div>` : ""}
+            ${bapKeys.length ? `<div style="font-size:13.5px;color:var(--text-secondary);margin-bottom:4px;">Parent keys: <code class="ic">${bapKeys.join(", ")}</code></div>` : ""}
+            ${parentKeys.length ? `<div style="font-size:13.5px;color:var(--text-secondary);">Parameters: ${parentKeys.map(([pk, pv]) => `<code class="ic">"${pk}"</code> (${pv.kind || pv.genus || "GObject"})`).join(" · ")}</div>` : ""}
+          </div>
+        `;
+      }).join("");
+    }
+
+    // =========================================================================
+    // Live Playground Runner
+    // =========================================================================
+    function formatPlaygroundJson() {
+      const ta = document.getElementById("playgroundTextarea");
+      const status = document.getElementById("playgroundStatus");
+      if (!ta) return;
+      try {
+        ta.value = JSON.stringify(JSON.parse(ta.value), null, 2);
+        status.textContent = "Formatted JSON.";
+      } catch (err) {
+        status.textContent = "Invalid JSON: " + err.message;
+      }
+    }
+
+    function copyPlaygroundJson(btn) {
+      const ta = document.getElementById("playgroundTextarea");
+      if (!ta) return;
+      navigator.clipboard.writeText(ta.value).then(() => {
+        const orig = btn.textContent;
+        btn.textContent = "Copied";
+        setTimeout(() => btn.textContent = orig, 1400);
+      });
+    }
+
+    function loadPlaygroundPreset(presetKey) {
+      const ta = document.getElementById("playgroundTextarea");
+      if (!ta) return;
+      const sel = document.getElementById("pgPresetSelect"); if (sel && sel.value !== presetKey) sel.value = presetKey;
+      ta.value = JSON.stringify(PRESET_SKETCHES[presetKey] || PRESET_SKETCHES.parabola, null, 2);
+      runPlaygroundSketch();
+    }
+
+    function runPlaygroundSketch() {
+      const ta = document.getElementById("playgroundTextarea");
+      const status = document.getElementById("playgroundStatus");
+      const metaEl = document.getElementById("playgroundCanvasMeta");
+      const mount = document.getElementById("liveWspMount");
+      if (!ta || !mount) return;
+
+      if (!window.jQuery || !jQuery.fn || !jQuery.fn.WSP) {
+        mount.innerHTML = `<div class="engine-missing-note">Loading Web Sketchpad engine from official host…</div>`;
+        if (window.whenWspEngineReady) {
+          window.whenWspEngineReady(function () {
+            if (document.getElementById("liveWspMount")) runPlaygroundSketch();
+          });
+        }
+        return;
+      }
+
+      try {
+        const parsed = JSON.parse(ta.value);
+        if (window.GSP && GSP.Sketch && parsed.pages && parsed.pages[0]) {
+          const check = GSP.Sketch.supportCheck(parsed.pages[0]);
+          metaEl.textContent = `${check.supportedCount}/${check.count}`;
+        }
+        window.__LIVE_PLAYGROUND_SKETCH__ = parsed;
+        unmountLiveSketch("liveWspMount");
+        mount.innerHTML = `<div class="sketch_canvas" id="liveSketchNode" data-var="__LIVE_PLAYGROUND_SKETCH__"></div>`;
+        jQuery("#liveSketchNode").WSP("loadSketch");
+        fitLiveSketchToStage("liveWspMount", parsed);
+        requestAnimationFrame(() => fitLiveSketchToStage("liveWspMount", parsed));
+        status.textContent = "Rendered 3-layer interactive canvas.";
+        const runBtn = document.getElementById("pgRunBtn");
+        if (runBtn) {
+          clearTimeout(runBtn.__fbTimer);
+          runBtn.classList.remove("is-run-err");
+          runBtn.classList.add("is-run-ok");
+          runBtn.__fbTimer = setTimeout(() => runBtn.classList.remove("is-run-ok"), 900);
+        }
+      } catch (err) {
+        status.textContent = "JSON parse error: " + err.message;
+        const runBtn = document.getElementById("pgRunBtn");
+        if (runBtn) {
+          clearTimeout(runBtn.__fbTimer);
+          runBtn.classList.remove("is-run-ok");
+          runBtn.classList.add("is-run-err");
+          runBtn.__fbTimer = setTimeout(() => runBtn.classList.remove("is-run-err"), 900);
+        }
+      }
+    }
+
+    // =========================================================================
+    // Helpers, Theme & Ctrl+K Search
+    // =========================================================================
+    function copyPreCode(btn) {
+      const pre = btn.closest(".doc-code-card").querySelector("pre");
+      if (!pre) return;
+      navigator.clipboard.writeText(pre.innerText).then(() => {
+        clearTimeout(btn.__copyTimer);
+        btn.classList.add("is-copied");
+        btn.innerHTML = '<svg class="icon"><use href="#ic-check"/></svg>';
+        btn.setAttribute("data-tip", "Copied!");
+        btn.__copyTimer = setTimeout(() => {
+          btn.classList.remove("is-copied");
+          btn.innerHTML = '<svg class="icon"><use href="#ic-copy"/></svg>';
+          btn.setAttribute("data-tip", "Copy code");
+        }, 1500);
+      });
+    }
+
+    function copyCurrentPageMarkdown() {
+      const main = document.getElementById("docsMainArticle");
+      const btn = document.getElementById("copyPageBtn");
+      navigator.clipboard.writeText(main.innerText).then(() => {
+        clearTimeout(btn.__copyTimer);
+        if (!btn.__origHtml) btn.__origHtml = btn.innerHTML;
+        btn.classList.add("is-copied");
+        btn.innerHTML = `<svg class="icon" style="width:14px;height:14px"><use href="#ic-check"/></svg><span>Copied</span>`;
+        btn.__copyTimer = setTimeout(() => {
+          btn.classList.remove("is-copied");
+          btn.innerHTML = btn.__origHtml;
+        }, 1500);
+      });
+    }
+
+    const SKILL_MD_CONTENT = "---\nname: web-sketchpad-json\ndescription: Author, debug, and validate Web Sketchpad (WSP v4.8.0 / Q4 2026) declarative JSON geometric constructions, interactive HTML5 embeds, and dynamic math sketches. Activate whenever creating or editing Web Sketch JSON, plotting functions/intersections, building fractal iterations, or integrating WSP widgets and multi-page controls in HTML.\n---\n\n# Web Sketchpad JSON Construction Skill (Q4 2026)\n\nUse this skill to write valid, zero-template Web Sketchpad JSON documents and embed them cleanly in HTML pages without relying on desktop Sketchpad export templates.\n\n## 1. Core Construction Rules\n\n1. **Topological dependency order**: Define objects in `pages[0].objects` strictly from independent parents to dependent children (Free points/parameters → Lines/Circles → Intersections/Polygons → Measures/Loci/Buttons). Every ID referenced in `parents` must already exist.\n2. **Coordinate & unit conventions**:\n   - Canvas origin `(0, 0)` is at the **top-left**; `+x` goes right, `+y` goes **down**.\n   - `1 inch = 72 px`, `1 cm = 72 / 2.54 ≈ 28.3464567 px`.\n   - `Rotate.angle` is always in **radians** (`Math.PI = 180°`). Although positive angles are mathematically counterclockwise, remember the canvas origin is top-left with **`+y` pointing down**—double-check the sign of `±π/2` when rotating polygons outward from an edge.\n3. **Four mandatory validation gates (preventing silent blank canvas)**:\n   - `metadata[\"wsp-version\"]` must be `\"4.8.0\"` (or `\"4.9.0\"`, major version `4`).\n   - `pages[i].preferences.text.textTypes` must exist (at least `{}`).\n   - `pages[i].preferences.colorableComponents.Background` must exist (e.g. `{\"color\": \"white\"}`).\n   - Use `data-var=\"mySketch\"` on `<div class=\"sketch_canvas\">` for local `file://` compatibility.\n4. **Hard-won runtime pitfalls (blind-test verified)**:\n   - **Labels are hidden by default**: Setting `\"label\": \"A\"` alone does NOT display point/segment labels on canvas—always include `\"style\": {\"label\": {\"showLabel\": true}}`.\n   - **Measurements MUST use `kind: \"Measure\"` + `nameOrigin`**: Use `\"kind\": \"Measure\"` (NEVER `\"Expression\"`) for `MeasurementLength`, `MeasurementAngle`, `MeasurementArea`, `MeasurementValueOfPointOnPath`, etc., and set `\"style\": {\"nameOrigin\": \"namedFromTemplate\"}` (for auto labels like `m∠BAC = 55.4°`) or `\"nameOrigin\": \"namedFromLabel\"` with `\"label\"` (otherwise it renders blank `Expression N =`).\n   - **Editable Parameters & Calculations MUST set `nameOrigin: \"namedFromLabel\"`**: Define an editable parameter as `\"kind\": \"Expression\", \"genus\": \"ScalarMeasure\", \"constraint\": \"Calculation\", \"parents\": {}, \"expressionType\": \"UniMeasure_ExprType\", \"expression\": \"0.45\", \"label\": \"a\", \"style\": {\"nameOrigin\": \"namedFromLabel\", \"precision\": 2}` (do NOT put `value` at top level on `constraint: \"Free\"`, which evaluates to `undefined`). For derived `Calculation` objects, also include `\"style\": {\"nameOrigin\": \"namedFromLabel\"}` with `\"label\"` so it displays your label instead of `Expression N`.\n   - **`GeomLocus` requires full `DriveChain` parents + `driverDomain`**: Besides `\"driverObject\"`, `\"drivenObject\"`, and `\"domainObject\"`, you MUST list every intermediate object along the drive chain (including `\"drivenObject\"` itself) as numbered keys `\"0\"`, `\"1\"`, … in `parents`, and explicitly set `\"isDiscrete\": false` and `\"driverDomain\": {\"low\": 0, \"high\": 1}` (missing chain throws `isDiscrete` TypeError; missing `driverDomain` draws nothing).\n   - **Axes block dragging unless locked**: Always set `\"selectable\": false` in `style` on `Axis` and `CoordSys` objects so free points remain draggable.\n   - **Infinite dashed/dotted lines cause GPU drag lag**: For infinite lines (`Line`, `Perpendicular`, `Parallel`), prefer light-colored thin `\"line-style\": \"solid\"` strokes over dense `\"dotted\"` lines.\n   - **AngleBisector vertex**: In `parents: {\"A\", \"B\", \"C\"}`, `\"B\"` (the middle key) is the vertex of `∠ABC`.\n   - **Readable labels for teaching sketches**: Give parameters and calculations clear, self-explanatory `label` strings with units (e.g., `\"Horizontal Angle α (rad)\"` or `\"a/sin(A)\"`) instead of bare single letters, and group them in a dedicated top-left margin.\n   - **Clean unmount in SPAs**: Before replacing a `.sketch_canvas` container, call `jQuery(node).data(\"document\").stop()` to stop background `JobScheduler` loops and release listeners.\n\n## 2. Minimal Valid Document Skeleton\n\n```json\n{\n  \"metadata\": { \"width\": 640, \"height\": 360, \"wsp-version\": \"4.8.0\", \"start-page\": \"1\" },\n  \"resources\": { \"fontList\": [\"\\\"Arial\\\", sans-serif\", \"\\\"Times New Roman\\\", serif\"] },\n  \"pages\": [{\n    \"metadata\": { \"title\": \"Page 1\", \"id\": \"1\", \"sketchRect\": { \"top\": 0, \"left\": 0, \"bottom\": 360, \"right\": 640 } },\n    \"preferences\": {\n      \"units\": { \"length\": \"cm\", \"angle\": \"deg\" },\n      \"precision\": { \"length\": 2, \"angle\": 2, \"scalar\": 2 },\n      \"colorableComponents\": { \"Background\": { \"color\": \"white\" } },\n      \"text\": { \"mathItalicization\": true, \"textTypes\": {} }\n    },\n    \"objects\": {}\n  }]\n}\n```\n\n## 3. High-Frequency Object Recipes\n\n- **Free Point (with visible label)**: `{\"kind\":\"Point\",\"genus\":\"Point\",\"constraint\":\"Free\",\"geom\":{\"loc\":{\"x\":160,\"y\":200}},\"label\":\"A\",\"style\":{\"color\":\"#d63628\",\"label\":{\"showLabel\":true}}}`\n- **Segment / Perpendicular / Parallel / Bisector**:\n  - `Segment`: `kind:\"Straight\", genus:\"Segment\", constraint:\"Segment\", parents:{\"p0\":\"1\",\"p1\":\"2\"}`\n  - `Perpendicular`: `kind:\"Straight\", genus:\"Perpendicular\", constraint:\"Perpendicular\", parents:{\"p0\":\"3\",\"line\":\"5\"}`\n  - `Parallel`: `kind:\"Straight\", genus:\"Parallel\", constraint:\"Parallel\", parents:{\"p0\":\"3\",\"line\":\"5\"}`\n  - `AngleBisector`: `kind:\"Straight\", genus:\"Bisector\", constraint:\"AngleBisector\", parents:{\"A\":\"2\",\"B\":\"1\",\"C\":\"3\"}`\n- **Intersections**:\n  - Line–Line: `constraint:\"Intersection\", parents:{\"line0\":\"5\",\"line1\":\"9\"}`\n  - Circle–Line/Circle: `constraint:\"Intersection1\"` / `\"Intersection2\"`, `parents:{\"circle\":\"3\",\"obj\":\"4\"}`\n  - **FunctionPlot / GeomLocus Intersection (Q4 2026)**: `constraint:\"InterApproxPathStitchedPath_C\", parents:{\"0\":\"9\",\"1\":\"12\"}` (declare multiple points with identical `parents` to auto-assign the 1st, 2nd, … crossings; tapping crossings in Web Sketchpad is enabled by default since Nov 19, 2026—disable via `window.GSPConfig.Intersections = { options: { tapPlotIntersections: false } }`).\n- **Circles, Arcs & Polygons**:\n  - `CircleFromTwoPoints` (`parents:{\"p0\",\"p1\"}`), `CircleByRadius` (`parents:{\"p0\",\"radius\"}`)\n  - `ArcOnCircle` (`parents:{\"circle\",\"p0\",\"p1\"}`), `Arc3Points` (`parents:{\"p0\",\"p1\",\"p2\"}`), `ArcSector` (`kind:\"ArcInterior\", parents:{\"arc\"}`)\n  - `PolygonFromPoints` (`kind:\"Polygon\", genus:\"Triangle\", parents:{\"0\":\"1\",\"1\":\"2\",\"2\":\"3\"}`)\n- **Measures, Parameters & Calculations**:\n  - `MeasurementLength`: `kind:\"Measure\", genus:\"DistanceMeasure\", constraint:\"MeasurementLength\", parents:{\"path\":\"3\"}, geom:{\"loc\":{\"x\":24,\"y\":36}}, style:{\"font-size\":14,\"precision\":2,\"nameOrigin\":\"namedFromTemplate\"}`\n  - `MeasurementAngle`: `kind:\"Measure\", genus:\"AngleMeasure\", constraint:\"MeasurementAngle\", parents:{\"p0\":\"1\",\"p1\":\"2\",\"p2\":\"3\"}, geom:{\"loc\":{\"x\":24,\"y\":64}}, style:{\"font-size\":14,\"precision\":1,\"nameOrigin\":\"namedFromTemplate\"}`\n  - `MeasurementArea`: `kind:\"Measure\", genus:\"AreaMeasure\", constraint:\"MeasurementArea\", parents:{\"shape\":\"8\"}, geom:{\"loc\":{\"x\":24,\"y\":92}}, style:{\"font-size\":14,\"precision\":2,\"nameOrigin\":\"namedFromTemplate\"}`\n  - `Calculation`: `kind:\"Expression\", genus:\"ScalarMeasure\", constraint:\"Calculation\", parents:{\"0\":\"13\",\"1\":\"14\"}, expressionType:\"UniMeasure_ExprType\", expression:\"@0/@1\", label:\"Ratio\", geom:{\"loc\":{\"x\":24,\"y\":120}}, style:{\"font-size\":14,\"precision\":2,\"nameOrigin\":\"namedFromLabel\"}`\n  - Editable Parameter: `kind:\"Expression\", genus:\"ScalarMeasure\", constraint:\"Calculation\", parents:{}, expressionType:\"UniMeasure_ExprType\", expression:\"0.45\", label:\"a\", geom:{\"loc\":{\"x\":24,\"y\":36}}, style:{\"font-size\":14,\"precision\":2,\"nameOrigin\":\"namedFromLabel\"}`\n- **Coordinate System, Functions, Dynamic Plotting & Loci**:\n  - Chain: `OriginPoint` (`Free`) → `HorizontalUnitPoint` (`parents:{\"origin\"}`, `value:44`) → `AxisInternalDist` (`horizontal`, `style.selectable:false`) → `UnitPointInternalSquare` → `AxisInternalDist` (`vertical`, `style.selectable:false`) → `CoordSys` (`parents:{\"axisX\",\"axisY\"}`, `style.selectable:false`).\n  - `FunctionPlot`: `kind:\"Sampler\", parents:{\"function\",\"coordSys\"}, numSamples:180, driverDomain:{\"low\":-6,\"high\":6}`\n  - Dynamic Coordinate Point: `PlotMarkedXMarkedY` (`parents:{\"coordSys\",\"coordX\",\"coordY\"}`)\n  - Locus: `GeomLocus` (`kind:\"Sampler\", genus:\"PointLocus\", constraint:\"GeomLocus\", parents:{\"driverObject\":\"5\",\"drivenObject\":\"10\",\"domainObject\":\"3\",\"0\":\"6\",\"1\":\"7\",\"2\":\"8\",\"3\":\"9\",\"4\":\"10\"}, numSamples:180, isDiscrete:false, driverDomain:{\"low\":0,\"high\":1}`)\n- **Transforms & 2-Branch Fractals**:\n  - `Reflect` (`source, mirror`), `Rotate` (`source, center`, `angle` in rad), `RotateMeasureAngle` (`source, center, angle`), `DilateMeasureFactor` (`source, center, measure`), `TranslateVector` (`source, p0, p1`).\n  - 2-Branch Fractal Tree: `IterateMap` with `parents:{\"preimage0\":\"1\",\"preimage1\":\"2\",\"map0image0\":\"2\",\"map0image1\":\"5\",\"map1image0\":\"2\",\"map1image1\":\"6\",\"0\":\"3\"}` + `IterateImage` (`source, map`).\n- **Action Buttons & Host HTML Integration**:\n  - `ActionButtonAnimate`: `kind:\"Button\", genus:\"Action\", constraint:\"ActionButtonAnimate\", parents:{\"0\":\"9\"}, label:\"Animate\", messages:[\"Animate\"], animationStates:[{\"rate\":0.4,\"timeInterval\":0,\"repeat\":true,\"motionType\":\"both\"}], geom:{\"loc\":{\"x\":24,\"y\":140}}` (note: `genus` MUST be `\"Action\"`, NOT `\"Button\"`, and `label` is required; to animate an angle/parameter smoothly, animate a `PointOnPath` slider and read it via `MeasurementValueOfPointOnPath` with BOTH `parents:{\"point\":\"...\",\"path\":\"...\"}`).\n  - Also available: `ActionButtonToggleHideShow`, `ActionButtonMove` (pairs of `[point, target]` in `parents`), `ActionButtonPresentSimultaneously`.\n  - Host page prefs: `WSP.PREF.setWebPagePrefs([...])`; Trace Widget (`traceWidget`) now includes a `Construct Locus` button for constructing point/line/circle/polygon loci and envelopes directly in the browser; multi-page DOM sync: `<div class=\"page_toggle p_2\">` and `PAGENUM.gotoPage(this, 2)`; in-sketch reset via `PressButton.WSP` + `ctx.document.undo(\"all\")`.\n  - Accessibility hidden `Hide/Show` buttons: `WSP-TABS`, `WSP-SAYS`, `WSP-ON-BUTTON-DOWN-SAYS`, `WSP-ON-BUTTON-UP-SAYS`.\n\n## 4. Standalone Interactive HTML Wrapper\n\n- Output **pure `.json`** when the user wants data for further editing or uploading to the official Web Sketchpad Tool Library (`https://sineofthetimes.org/fc/tools/library`, Utility Menu → Upload).\n- Output a **single self-contained `.html` file** when the user wants an interactive math sketch they can double-click and drag immediately in any browser:\n\n```html\n<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\" />\n  <title>Web Sketchpad Interactive Construction<\/title>\n  <!-- Load official non-commercial runtime directly, or point to local engine/ for offline personal study -->\n  <script src=\"https://sineofthetimes.org/includes/v4.6/js/jquery-2.1.0.js\"><\/script>\n  <script src=\"https://sineofthetimes.org/includes/v4.6/js/wsp.js\"><\/script>\n  <script src=\"https://sineofthetimes.org/includes/v4.6/js/wsp-runner.js\"><\/script>\n  <style>.sketch_canvas { display: inline-block; border: 1px solid #e5e7eb; }<\/style>\n<\/head>\n<body>\n  <div class=\"sketch_canvas\" data-var=\"mySketch\"><\/div>\n  <script>\n    window.mySketch = { /* paste valid Web Sketch JSON here */ };\n  <\/script>\n<\/body>\n<\/html>\n```\n\n> **Licensing note**: Never bundle or redistribute proprietary Web Sketchpad runtime scripts (`wsp.js`, `wsp-runner.js`, `widgets.js`) in public repositories or shared archives; load them from the official host or keep local copies strictly for private offline study.\n\n## 5. Full Schema Reference\n\nWhen you need exact `parents` keys, `kinds`, inheritance, or existence rules for any of the 21 concrete object kinds and 155 registered constraints, read `references/wsp-schema.json` inside this skill folder.\n";
+
+    function populateLLMPromptPre() {
+      const pre = document.getElementById("llmPromptPre");
+      if (!pre) return;
+      pre.textContent = SKILL_MD_CONTENT;
+    }
+
+    function switchLanguage(targetFile) {
+      const hash = currentPageId && currentPageId !== "home" ? "#" + currentPageId : "";
+      const isHttp = window.location.protocol === "http:" || window.location.protocol === "https:";
+      const target = isHttp ? (targetFile === "index.html" ? "/" : "/" + targetFile.replace(/\.html$/, "")) : targetFile;
+      window.location.href = target + hash;
+    }
+
+    function applyTheme(mode) {
+      document.documentElement.setAttribute("data-theme", mode);
+      const useEl = document.getElementById("themeIconUse");
+      if (useEl) useEl.innerHTML = `<use href="${mode === 'dark' ? '#ic-sun' : '#ic-moon'}"/>`;
+    }
+
+    function toggleTheme() {
+      const next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+      applyTheme(next);
+      try { localStorage.setItem("wsp_docs_theme", next); } catch (e) {}
+    }
+
+    function toggleMobileDrawer() {
+      const sb = document.getElementById("docsSidebar");
+      const mask = document.getElementById("mobileDrawerMask");
+      if (!sb || !mask) return;
+      const open = !sb.classList.contains("mobile-open");
+      sb.classList.toggle("mobile-open", open);
+      mask.classList.toggle("open", open);
+    }
+
+    function closeMobileDrawer() {
+      const sb = document.getElementById("docsSidebar");
+      const mask = document.getElementById("mobileDrawerMask");
+      if (sb) sb.classList.remove("mobile-open");
+      if (mask) mask.classList.remove("open");
+    }
+
+    function openSearchModal() {
+      document.getElementById("searchModal").classList.add("open");
+      const inp = document.getElementById("globalSearchInput");
+      inp.value = "";
+      renderGlobalSearch("");
+      setTimeout(() => inp.focus(), 40);
+    }
+
+    function closeSearchModal() {
+      document.getElementById("searchModal").classList.remove("open");
+    }
+
+    function renderGlobalSearch(query) {
+      const box = document.getElementById("globalSearchResults");
+      const q = query.trim().toLowerCase();
+      let items = [];
+
+      for (const [pid, pdata] of Object.entries(PAGES)) {
+        const plainBody = (pdata.html || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+        const hitTitle = !q || pdata.title.toLowerCase().includes(q) || pdata.lead.toLowerCase().includes(q);
+        const bodyIdx = q ? plainBody.toLowerCase().indexOf(q) : -1;
+        if (hitTitle || bodyIdx !== -1) {
+          let subText = pdata.breadcrumb;
+          if (!hitTitle && bodyIdx !== -1) {
+            const start = Math.max(0, bodyIdx - 18);
+            const snippet = plainBody.slice(start, start + 64).trim();
+            subText = pdata.breadcrumb + " · …" + snippet + "…";
+          }
+          items.push({
+            title: pdata.title,
+            sub: subText,
+            action: () => { closeSearchModal(); openInteriorPage(pid); }
+          });
+        }
+      }
+
+      if (window.WSP_RUNTIME_SCHEMA && q) {
+        for (const c of Object.values(window.WSP_RUNTIME_SCHEMA.constraints)) {
+          if (c.name.toLowerCase().includes(q) || (c.description && c.description.toLowerCase().includes(q)) || (c.gspRef && c.gspRef.toLowerCase().includes(q))) {
+            items.push({
+              title: c.name,
+              sub: `Constraint · kind: ${c.kinds.join("/") || "Any"}`,
+              action: () => {
+                closeSearchModal();
+                currentConstraintCategory = "ALL";
+                openInteriorPage("ref-constraints");
+                const inp = document.getElementById("constraintFilterInput");
+                if (inp) { inp.value = c.name; filterConstraintsList(); }
+              }
+            });
+          }
+        }
+      }
+
+      box.innerHTML = items.slice(0, 18).map((it, idx) => `
+        <div class="modal-row" onclick="window.__SEARCH_ACT__[${idx}]()">
+          <div>
+            <div style="font-size:15px;font-weight:500;color:var(--text-primary);">${it.title}</div>
+            <div style="font-size:13px;color:var(--text-muted);">${it.sub}</div>
+          </div>
+          <span style="font-size:13px;color:var(--text-muted);">↵</span>
+        </div>
+      `).join("") || `<div style="padding:18px;text-align:center;color:var(--text-muted);font-size:14px;">No matching results</div>`;
+      window.__SEARCH_ACT__ = items.slice(0, 18).map(it => it.action);
+    }
+
+    window.addEventListener("keydown", (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        openSearchModal();
+      } else if (e.key === "Escape") {
+        closeSearchModal();
+        closeMobileDrawer();
+      }
+    });
+
+    window.addEventListener("DOMContentLoaded", () => {
+      try {
+        const saved = localStorage.getItem("wsp_docs_theme");
+        if (saved === "dark" || saved === "light") applyTheme(saved);
+      } catch (e) {}
+      const hashPage = window.location.hash ? window.location.hash.slice(1) : "";
+      if (hashPage && PAGES[hashPage]) {
+        openInteriorPage(hashPage);
+      } else {
+        openHomePortal();
+      }
+    });
+  
+    // =========================================================================
+    // Motion Studies Micro-Interactions (Morph Tooltip + Sliding Pill + Feedback)
+    // =========================================================================
+    function syncConstraintPillSlider(instant) {
+      const pillBar = document.getElementById("constraintCategoryPills");
+      if (!pillBar) return;
+      const slider = pillBar.querySelector(".pill-slider-bg");
+      const active = pillBar.querySelector(".cat-pill.active");
+      if (!slider || !active) return;
+      if (instant) slider.style.transition = "none";
+      slider.style.width = active.offsetWidth + "px";
+      slider.style.height = active.offsetHeight + "px";
+      slider.style.transform = `translate3d(${active.offsetLeft}px, ${active.offsetTop}px, 0)`;
+      slider.style.opacity = "1";
+      if (instant) {
+        slider.getBoundingClientRect();
+        slider.style.transition = "";
+      }
+    }
+
+    function selectConstraintCategory(cat) {
+      currentConstraintCategory = cat;
+      const pillBar = document.getElementById("constraintCategoryPills");
+      if (pillBar) {
+        pillBar.querySelectorAll(".cat-pill").forEach(btn => {
+          btn.classList.toggle("active", btn.dataset.cat === cat);
+        });
+        syncConstraintPillSlider(false);
+      }
+      filterConstraintsList();
+    }
+
+    (function initMorphTooltip() {
+      let tipEl = null;
+      let hideTimer = null;
+      let activeTarget = null;
+      const SEL = ".header-right [title], .header-right [data-tip], .doc-code-card .icon-btn[title], .doc-code-card .icon-btn[data-tip]";
+
+      function ensureTip() {
+        if (!tipEl) {
+          tipEl = document.createElement("div");
+          tipEl.className = "morph-tooltip";
+          tipEl.setAttribute("role", "tooltip");
+          document.body.appendChild(tipEl);
+        }
+        return tipEl;
+      }
+
+      function showFor(el) {
+        if (window.matchMedia && window.matchMedia("(hover: none)").matches) return;
+        const raw = el.getAttribute("data-tip") || el.getAttribute("title");
+        if (!raw) return;
+        if (el.hasAttribute("title")) {
+          el.setAttribute("data-tip", raw);
+          el.removeAttribute("title");
+        }
+        clearTimeout(hideTimer);
+        const tip = ensureTip();
+        const wasVisible = tip.classList.contains("visible");
+        tip.textContent = raw;
+        const rect = el.getBoundingClientRect();
+        const tw = tip.offsetWidth;
+        const th = tip.offsetHeight;
+        let x = rect.left + rect.width / 2 - tw / 2;
+        x = Math.max(8, Math.min(window.innerWidth - tw - 8, x));
+        let y = rect.bottom + 8;
+        if (y + th > window.innerHeight - 8) y = rect.top - th - 8;
+        if (!wasVisible) {
+          tip.style.transition = "none";
+          tip.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y - 4)}px, 0) scale(0.94)`;
+          tip.getBoundingClientRect();
+          tip.style.transition = "";
+        }
+        tip.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0) scale(1)`;
+        tip.classList.add("visible");
+        activeTarget = el;
+      }
+
+      function scheduleHide() {
+        clearTimeout(hideTimer);
+        hideTimer = setTimeout(() => {
+          if (tipEl) tipEl.classList.remove("visible");
+          activeTarget = null;
+        }, 90);
+      }
+
+      document.addEventListener("mouseover", (e) => {
+        const el = e.target.closest && e.target.closest(SEL);
+        if (el && el !== activeTarget) showFor(el);
+      });
+      document.addEventListener("mouseout", (e) => {
+        if (!activeTarget) return;
+        const to = e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest(SEL);
+        if (!to) scheduleHide();
+      });
+      document.addEventListener("pointerdown", () => {
+        if (tipEl) tipEl.classList.remove("visible");
+        activeTarget = null;
+      });
+      window.addEventListener("resize", () => syncConstraintPillSlider(true));
+    })();
+
+  </script>
+</body>
+</html>

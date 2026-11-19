@@ -1,0 +1,3636 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <title>Web Sketchpad 语法手册</title>
+  
+  <script>
+    (function () {
+      var isLocal = window.location.protocol === "file:";
+      var localUrls = ["engine/jquery-2.1.0.min.js", "engine/wsp-min.js", "engine/wsp-runner.js"];
+      var remoteUrls = [
+        "https://sineofthetimes.org/includes/v4.6/js/jquery-2.1.0.js",
+        "https://sineofthetimes.org/includes/v4.6/js/wsp.js",
+        "https://sineofthetimes.org/includes/v4.6/js/wsp-runner.js"
+      ];
+      window.__WSP_ENGINE_READY__ = false;
+      window.__WSP_ON_READY_QUEUE__ = [];
+      window.whenWspEngineReady = function (fn) {
+        if (window.__WSP_ENGINE_READY__ && window.jQuery && jQuery.fn && jQuery.fn.WSP) {
+          fn();
+        } else {
+          window.__WSP_ON_READY_QUEUE__.push(fn);
+        }
+      };
+      function loadSeq(urls, idx, onFail) {
+        if (idx >= urls.length) {
+          window.__WSP_ENGINE_READY__ = true;
+          var q = window.__WSP_ON_READY_QUEUE__.splice(0);
+          q.forEach(function (fn) { try { fn(); } catch (e) {} });
+          return;
+        }
+        var s = document.createElement("script");
+        s.src = urls[idx];
+        s.async = false;
+        s.onload = function () { loadSeq(urls, idx + 1, onFail); };
+        s.onerror = function () {
+          if (onFail) onFail();
+        };
+        document.head.appendChild(s);
+      }
+      if (isLocal) {
+        loadSeq(localUrls, 0, function () { loadSeq(remoteUrls, 0, null); });
+      } else {
+        loadSeq(remoteUrls, 0, null);
+      }
+    })();
+  </script>
+  <script src="wsp-schema-data.js"></script>
+  <style>
+    
+    :root {
+      --bg-canvas: #FCFCFB;
+      --bg-surface: #FFFFFF;
+      --bg-elevated: #F8F8F6;
+      --bg-subtle: rgba(11, 11, 11, 0.045);
+      --bg-hover: rgba(11, 11, 11, 0.075);
+      --text-primary: #0B0B0B;
+      --text-secondary: #4E4D4A;
+      --text-muted: #84827C;
+      --border-hairline: rgba(11, 11, 11, 0.09);
+      --card-shadow: inset 0 0 0 1px rgba(11, 11, 11, 0.09), 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+      --card-shadow-hover: inset 0 0 0 1px rgba(11, 11, 11, 0.20), 0 3px 10px 0 rgba(0, 0, 0, 0.045);
+      --link-blue: #184F95;
+      --syn-kw: #CF222E;
+      --syn-prop: #184F95;
+      --syn-str: #0A3069;
+      --syn-num: #0550AE;
+      --syn-cmt: #84827C;
+      --pill-bg: #F2F1ED;
+      --pill-fg: #4E4D4A;
+      --header-h: 62px;
+      --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --ease-fast: 0.06s cubic-bezier(0.165, 0.84, 0.44, 1);
+    }
+
+    html[data-theme="dark"] {
+      --bg-canvas: #0B0B0B;
+      --bg-surface: #141414;
+      --bg-elevated: #1A1A19;
+      --bg-subtle: rgba(255, 255, 255, 0.06);
+      --bg-hover: rgba(255, 255, 255, 0.10);
+      --text-primary: #F0EFEC;
+      --text-secondary: #C5C4B9;
+      --text-muted: #898781;
+      --border-hairline: rgba(255, 255, 255, 0.10);
+      --card-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.10), 0 1px 2px 0 rgba(0, 0, 0, 0.25);
+      --card-shadow-hover: inset 0 0 0 1px rgba(255, 255, 255, 0.24), 0 4px 14px 0 rgba(0, 0, 0, 0.45);
+      --link-blue: #6DA7EC;
+      --syn-kw: #FF7B72;
+      --syn-prop: #6DA7EC;
+      --syn-str: #CE9178;
+      --syn-num: #79C0FF;
+      --syn-cmt: #78766F;
+      --pill-bg: rgba(255, 255, 255, 0.08);
+      --pill-fg: #C5C4B9;
+    }
+
+    :root { color-scheme: light; }
+    html[data-theme="dark"] { color-scheme: dark; }
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(128, 128, 128, 0.35) transparent;
+    }
+    *::-webkit-scrollbar { width: 6px; height: 6px; }
+    *::-webkit-scrollbar-track { background: transparent; }
+    *::-webkit-scrollbar-thumb {
+      background: rgba(128, 128, 128, 0.32);
+      border-radius: 999px;
+    }
+    *::-webkit-scrollbar-thumb:hover {
+      background: rgba(128, 128, 128, 0.55);
+    }
+    *::-webkit-scrollbar-corner { background: transparent; }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg-canvas);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 16px;
+      line-height: 26px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    svg.icon {
+      width: 17px;
+      height: 17px;
+      stroke: currentColor;
+      stroke-width: 1.65;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      flex-shrink: 0;
+    }
+
+    
+    .global-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      height: var(--header-h);
+      background: var(--bg-canvas);
+      border-bottom: 1px solid var(--border-hairline);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 36px;
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      cursor: pointer;
+      text-decoration: none;
+      color: var(--text-primary);
+    }
+    .geo-emblem {
+      width: 24px;
+      height: 24px;
+      color: var(--text-primary);
+      flex-shrink: 0;
+    }
+    .brand-name {
+      font-size: 16.5px;
+      font-weight: 500;
+      letter-spacing: -0.015em;
+      color: var(--text-primary);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .icon-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background-color var(--ease-fast), color var(--ease-fast);
+    }
+    .icon-btn:hover { background: var(--bg-subtle); color: var(--text-primary); }
+
+    .lang-switch-btn {
+      height: 32px;
+      padding: 0 10px;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color var(--ease-fast), color var(--ease-fast);
+    }
+    .lang-switch-btn:hover { background: var(--bg-subtle); color: var(--text-primary); }
+
+
+    .btn-outline-sm {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 9px;
+      background: var(--bg-surface);
+      color: var(--text-primary);
+      font-size: 15px;
+      font-weight: 500;
+      border: none;
+      box-shadow: var(--card-shadow);
+      cursor: pointer;
+      transition: box-shadow var(--ease-fast), background-color var(--ease-fast);
+      text-decoration: none;
+    }
+    .btn-outline-sm:hover {
+      box-shadow: var(--card-shadow-hover);
+      background: var(--bg-subtle);
+    }
+
+    .btn-solid-sm {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 16px;
+      border-radius: 9px;
+      background: var(--text-primary);
+      color: var(--bg-canvas);
+      font-size: 14.5px;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+      transition: opacity var(--ease-fast);
+    }
+    .btn-solid-sm:hover { opacity: 0.86; }
+
+    
+    .search-box-trigger {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 340px;
+      padding: 9px 12px 9px 14px;
+      border-radius: 9px;
+      background: var(--bg-surface);
+      box-shadow: var(--card-shadow);
+      color: var(--text-muted);
+      font-size: 14.5px;
+      cursor: pointer;
+      transition: box-shadow var(--ease-fast);
+    }
+    .search-box-trigger:hover {
+      box-shadow: var(--card-shadow-hover);
+      color: var(--text-secondary);
+    }
+    .kbd-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .kbd-cap {
+      font-family: var(--font-sans);
+      font-size: 11.5px;
+      font-weight: 500;
+      line-height: 16px;
+      padding: 2px 6px;
+      border-radius: 5px;
+      background: var(--bg-canvas);
+      box-shadow: var(--card-shadow);
+      color: var(--text-muted);
+    }
+
+    
+    .portal-container {
+      width: min(92vw, 1360px);
+      margin: 0 auto;
+      padding: 72px 24px 108px;
+    }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 0.85fr 1.15fr;
+      gap: 64px;
+      align-items: center;
+      margin-bottom: 92px;
+    }
+    .eyebrow {
+      font-size: 13.5px;
+      font-weight: 400;
+      line-height: 20px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+    .hero-title {
+      font-size: 54px;
+      font-weight: 300;
+      line-height: 1.16;
+      letter-spacing: -0.025em;
+      color: var(--text-primary);
+      margin-bottom: 20px;
+    }
+    .hero-subtitle {
+      font-size: 17px;
+      line-height: 28px;
+      color: var(--text-secondary);
+      max-width: 460px;
+      margin-bottom: 28px;
+    }
+    .hero-actions-stack {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 16px;
+    }
+
+    
+    .code-showcase-card {
+      background: var(--bg-surface);
+      border-radius: 13px;
+      box-shadow: var(--card-shadow);
+      overflow: hidden;
+    }
+    .code-showcase-tabs {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border-hairline);
+    }
+    .code-tab-list {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .code-tab-btn {
+      padding: 5px 12px;
+      border-radius: 7px;
+      font-size: 13.5px;
+      font-weight: 400;
+      color: var(--text-muted);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      transition: background-color var(--ease-fast), color var(--ease-fast);
+    }
+    .code-tab-btn:hover { color: var(--text-primary); }
+    .code-tab-btn.active {
+      background: var(--bg-subtle);
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+    .hero-live-canvas-pane {
+      background: #FFFFFF;
+      min-height: 340px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+    }
+    .hero-live-caption {
+      width: 100%;
+      padding: 10px 18px;
+      background: var(--bg-elevated);
+      border-top: 1px solid var(--border-hairline);
+      font-size: 13px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .code-showcase-body {
+      display: none;
+      padding: 20px 24px;
+      font-family: var(--font-mono);
+      font-size: 13.5px;
+      line-height: 21px;
+      color: var(--text-primary);
+      overflow-x: auto;
+      white-space: pre;
+      max-height: 380px;
+      overflow-y: auto;
+    }
+    .syn-k { color: var(--syn-kw); }
+    .syn-p { color: var(--syn-prop); }
+    .syn-s { color: var(--syn-str); }
+    .syn-n { color: var(--syn-num); }
+    .syn-c { color: var(--syn-cmt); font-style: italic; }
+
+    
+    .home-section {
+      margin-bottom: 52px;
+    }
+    .home-section:last-child {
+      margin-bottom: 0;
+    }
+    .home-section-title {
+      font-size: 18px;
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-bottom: 16px;
+      letter-spacing: -0.01em;
+    }
+    .clean-strip-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .strip-card {
+      background: var(--bg-surface);
+      border-radius: 11px;
+      box-shadow: var(--card-shadow);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 15.5px;
+      font-weight: 400;
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: box-shadow var(--ease-fast), background-color var(--ease-fast);
+    }
+    .strip-card:hover {
+      box-shadow: var(--card-shadow-hover);
+      background: var(--bg-subtle);
+    }
+    .strip-card-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .strip-card-left svg.icon {
+      color: var(--text-muted);
+    }
+    .strip-card:hover .strip-card-left svg.icon {
+      color: var(--text-primary);
+    }
+
+    
+    .interior-shell {
+      display: none;
+      grid-template-columns: 296px minmax(0, 1fr);
+      width: 100%;
+      max-width: 1680px;
+      margin: 0 auto;
+      min-height: calc(100vh - var(--header-h));
+    }
+    body.mode-interior .portal-container { display: none; }
+    body.mode-interior .interior-shell { display: grid; }
+
+    
+    .docs-sidebar {
+      position: sticky;
+      top: var(--header-h);
+      height: calc(100vh - var(--header-h));
+      overflow-y: auto;
+      border-right: 1px solid var(--border-hairline);
+      padding: 24px 18px 48px 24px;
+    }
+    .docs-sidebar .search-box-trigger {
+      max-width: 100%;
+      margin-bottom: 24px;
+    }
+    .sidebar-group {
+      margin-bottom: 24px;
+    }
+    .sidebar-group-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      padding: 0 12px 8px;
+      line-height: 18px;
+    }
+    .sidebar-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 12px;
+      border-radius: 8px;
+      font-size: 14.5px;
+      line-height: 21px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: background-color var(--ease-fast), color var(--ease-fast);
+      margin-bottom: 2px;
+    }
+    .sidebar-item:hover {
+      background: var(--bg-subtle);
+      color: var(--text-primary);
+    }
+    .sidebar-item.active {
+      background: var(--bg-subtle);
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    
+    .docs-main {
+      padding: 48px 80px 110px;
+      max-width: 1120px;
+      width: 100%;
+    }
+    .docs-breadcrumb {
+      font-size: 13.5px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .docs-title-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 16px;
+    }
+    .docs-h1 {
+      font-size: 34px;
+      font-weight: 400;
+      line-height: 1.24;
+      letter-spacing: -0.015em;
+      color: var(--text-primary);
+    }
+    .copy-page-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 13px;
+      border-radius: 8px;
+      background: var(--bg-surface);
+      box-shadow: var(--card-shadow);
+      font-size: 13.5px;
+      color: var(--text-secondary);
+      border: none;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: box-shadow var(--ease-fast), color var(--ease-fast);
+    }
+    .copy-page-btn:hover {
+      box-shadow: var(--card-shadow-hover);
+      color: var(--text-primary);
+    }
+
+    .docs-lead {
+      font-size: 16.5px;
+      line-height: 27px;
+      color: var(--text-secondary);
+      margin-bottom: 28px;
+    }
+
+    .hairline-callout {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 15px 18px;
+      border-radius: 10px;
+      background: var(--bg-surface);
+      box-shadow: var(--card-shadow);
+      font-size: 14.5px;
+      line-height: 23px;
+      color: var(--text-secondary);
+      margin: 20px 0 28px;
+    }
+    .hairline-callout strong { color: var(--text-primary); font-weight: 500; }
+    .hairline-callout a {
+      color: var(--link-blue);
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      cursor: pointer;
+    }
+
+    
+    .inline-live-demo {
+      background: var(--bg-surface);
+      border-radius: 12px;
+      box-shadow: var(--card-shadow);
+      overflow: hidden;
+      margin: 20px 0 32px;
+    }
+    .inline-live-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border-hairline);
+      font-size: 13.5px;
+      color: var(--text-muted);
+    }
+    .inline-live-stage {
+      background: #FFFFFF;
+      padding: 14px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 320px;
+      overflow-x: auto;
+    }
+    .engine-missing-note {
+      padding: 36px 24px;
+      text-align: center;
+      color: #52514E;
+      font-size: 14.5px;
+      line-height: 24px;
+    }
+
+    h2.doc-h2 {
+      font-size: 22px;
+      font-weight: 500;
+      line-height: 30px;
+      letter-spacing: -0.01em;
+      color: var(--text-primary);
+      margin: 38px 0 14px;
+    }
+    p.doc-p {
+      font-size: 16px;
+      line-height: 26px;
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+    }
+    p.doc-p strong { color: var(--text-primary); font-weight: 500; }
+    p.doc-p a { color: var(--link-blue); text-decoration: underline; text-underline-offset: 3px; }
+    p.doc-p a code.ic { color: var(--link-blue); }
+
+    
+    .table-box {
+      border-radius: 11px;
+      background: var(--bg-surface);
+      box-shadow: var(--card-shadow);
+      overflow-x: auto;
+      margin: 18px 0 28px;
+    }
+    table.clean-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14.5px;
+      line-height: 22px;
+    }
+    table.clean-table th {
+      text-align: left;
+      padding: 13px 18px;
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+      font-weight: 500;
+      border-bottom: 1px solid var(--border-hairline);
+    }
+    table.clean-table td {
+      padding: 13px 18px;
+      border-bottom: 1px solid var(--border-hairline);
+      color: var(--text-secondary);
+      vertical-align: top;
+    }
+    table.clean-table tr:last-child td { border-bottom: none; }
+    table.clean-table td:first-child { color: var(--text-primary); font-weight: 500; white-space: nowrap; }
+
+    
+    .doc-code-card {
+      background: var(--bg-surface);
+      border-radius: 12px;
+      box-shadow: var(--card-shadow);
+      overflow: hidden;
+      margin: 16px 0 28px;
+    }
+    .doc-code-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 16px;
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border-hairline);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .doc-code-pre {
+      padding: 18px 22px;
+      font-family: var(--font-mono);
+      font-size: 14px;
+      line-height: 22px;
+      color: var(--text-primary);
+      overflow-x: auto;
+      margin: 0;
+    }
+    code.ic {
+      font-family: var(--font-mono);
+      font-size: 13.5px;
+      padding: 2px 6px;
+      border-radius: 5px;
+      background: var(--bg-subtle);
+      color: var(--text-primary);
+    }
+
+    
+    .filter-pills-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 16px 0 20px;
+    }
+    .cat-pill {
+      padding: 6px 13px;
+      border-radius: 8px;
+      font-size: 13.5px;
+      background: var(--bg-surface);
+      color: var(--text-secondary);
+      border: none;
+      box-shadow: var(--card-shadow);
+      cursor: pointer;
+      transition: all var(--ease-fast);
+    }
+    .cat-pill:hover { color: var(--text-primary); box-shadow: var(--card-shadow-hover); }
+    .cat-pill.active {
+      background: var(--text-primary);
+      color: var(--bg-canvas);
+      font-weight: 500;
+    }
+    .dict-search-input {
+      width: 100%;
+      padding: 11px 16px;
+      border-radius: 9px;
+      border: none;
+      background: var(--bg-surface);
+      box-shadow: var(--card-shadow);
+      color: var(--text-primary);
+      font-size: 15px;
+      outline: none;
+    }
+    .dict-search-input:focus { box-shadow: var(--card-shadow-hover); }
+    .c-item-card {
+      background: var(--bg-surface);
+      border-radius: 12px;
+      box-shadow: var(--card-shadow);
+      padding: 18px 22px;
+      margin-bottom: 12px;
+    }
+    .c-item-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .c-item-title {
+      font-family: var(--font-mono);
+      font-size: 15.5px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+    .trait-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .trait-pill {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 16px;
+      padding: 2px 7px;
+      border-radius: 5px;
+      background: var(--pill-bg);
+      color: var(--pill-fg);
+    }
+
+    
+    .docs-main.is-playground {
+      max-width: 1380px;
+      padding: 40px 56px 96px;
+    }
+    .pg-workbench {
+      background: var(--bg-surface);
+      border-radius: 12px;
+      box-shadow: var(--card-shadow);
+      overflow: hidden;
+      margin-top: 18px;
+    }
+    .pg-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding: 10px 16px;
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border-hairline);
+    }
+    .pg-toolbar-left, .pg-toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .pg-select-label {
+      font-size: 13.5px;
+      color: var(--text-muted);
+    }
+    .pg-select {
+      appearance: none;
+      background: var(--bg-surface);
+      color: var(--text-primary);
+      border: none;
+      box-shadow: var(--card-shadow);
+      border-radius: 8px;
+      padding: 6px 28px 6px 12px;
+      font-family: var(--font-sans);
+      font-size: 13.5px;
+      font-weight: 500;
+      cursor: pointer;
+      outline: none;
+      background-image: linear-gradient(45deg, transparent 50%, var(--text-muted) 50%), linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
+      background-position: calc(100% - 14px) 52%, calc(100% - 9px) 52%;
+      background-size: 5px 5px, 5px 5px;
+      background-repeat: no-repeat;
+    }
+    .pg-select:hover { box-shadow: var(--card-shadow-hover); }
+    .pg-split {
+      display: grid;
+      grid-template-columns: minmax(340px, 42%) minmax(0, 58%);
+      min-height: 520px;
+    }
+    .pg-editor-pane {
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border-hairline);
+      background: var(--bg-surface);
+    }
+    .pg-pane-head {
+      padding: 8px 16px;
+      font-size: 12.5px;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-hairline);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-canvas);
+    }
+    .playground-textarea {
+      flex: 1;
+      width: 100%;
+      min-height: 450px;
+      background: transparent;
+      color: var(--text-primary);
+      border: none;
+      padding: 16px 18px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 20px;
+      resize: none;
+      outline: none;
+      tab-size: 2;
+    }
+    .pg-statusbar {
+      padding: 8px 16px;
+      font-size: 12.5px;
+      color: var(--text-secondary);
+      border-top: 1px solid var(--border-hairline);
+      background: var(--bg-elevated);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .pg-stage-pane {
+      background: #FFFFFF;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .pg-stage-canvas-wrap {
+      flex: 1;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: auto;
+    }
+
+    
+    .modal-mask {
+      position: fixed;
+      inset: 0;
+      background: rgba(11, 11, 11, 0.42);
+      z-index: 999;
+      display: none;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 88px;
+    }
+    .modal-mask.open { display: flex; }
+    .modal-box {
+      width: 92%;
+      max-width: 600px;
+      background: var(--bg-surface);
+      border-radius: 13px;
+      box-shadow: var(--card-shadow-hover);
+      overflow: hidden;
+    }
+    .modal-input {
+      width: 100%;
+      padding: 16px 20px;
+      border: none;
+      border-bottom: 1px solid var(--border-hairline);
+      background: transparent;
+      color: var(--text-primary);
+      font-size: 16px;
+      outline: none;
+    }
+    .modal-list {
+      max-height: 390px;
+      overflow-y: auto;
+      padding: 8px;
+    }
+    .modal-row {
+      padding: 10px 14px;
+      border-radius: 9px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .modal-row:hover { background: var(--bg-subtle); }
+
+    
+    .diagram-card {
+      background: var(--bg-surface);
+      border-radius: 12px;
+      box-shadow: var(--card-shadow);
+      overflow: hidden;
+      margin: 20px 0 30px;
+    }
+    .diagram-card-head {
+      padding: 9px 16px;
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border-hairline);
+      font-size: 13px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .diagram-card-body {
+      padding: 24px 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow-x: auto;
+    }
+    .diagram-card-body svg {
+      max-width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    
+    .sketch_canvas {
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      contain: layout style paint;
+      will-change: transform;
+    }
+    .sketch_canvas .wsp-text-layer,
+    .sketch_canvas .wsp-text-layer > div {
+      contain: layout style;
+    }
+
+    
+    .doc-pager {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 52px;
+      padding-top: 28px;
+      border-top: 1px solid var(--border-hairline);
+    }
+    .pager-card {
+      background: var(--bg-surface);
+      border-radius: 10px;
+      box-shadow: var(--card-shadow);
+      padding: 14px 18px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      transition: box-shadow var(--ease-fast), background-color var(--ease-fast);
+    }
+    .pager-card:hover {
+      box-shadow: var(--card-shadow-hover);
+      background: var(--bg-subtle);
+    }
+    .pager-card.next { text-align: right; align-items: flex-end; }
+    .pager-dir { font-size: 12.5px; color: var(--text-muted); }
+    .pager-title { font-size: 15px; font-weight: 500; color: var(--text-primary); }
+
+    .mobile-menu-btn {
+      display: none;
+      margin-right: 4px;
+      flex-shrink: 0;
+    }
+    .mobile-drawer-mask {
+      display: none;
+      position: fixed;
+      inset: var(--header-h) 0 0 0;
+      background: rgba(11, 11, 11, 0.42);
+      z-index: 190;
+    }
+    .mobile-drawer-mask.open { display: block; }
+
+    .docs-main, .portal-container, .hero-grid > *, .code-showcase-card, .pg-workbench, .pg-split > *, .pg-editor-pane, .pg-stage-pane {
+      min-width: 0;
+    }
+    code.ic, .c-item-title {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    .code-tab-btn, .pg-select-label, .pg-toolbar button {
+      white-space: nowrap;
+    }
+
+    @media (max-width: 1080px) {
+      .hero-grid, .clean-strip-grid, .pg-split { grid-template-columns: minmax(0, 1fr); }
+      .docs-main, .docs-main.is-playground { padding: 32px 28px 80px; }
+      .pg-editor-pane { border-right: none; border-bottom: 1px solid var(--border-hairline); }
+    }
+    @media (max-width: 780px) {
+      .global-header {
+        padding: 0 14px;
+        gap: 8px;
+      }
+      .header-left {
+        gap: 8px;
+        min-width: 0;
+      }
+      .brand-name {
+        font-size: 15px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .header-right {
+        gap: 4px;
+        flex-shrink: 0;
+      }
+      body.mode-interior .mobile-menu-btn {
+        display: inline-flex;
+      }
+
+      .portal-container {
+        width: 100%;
+        padding: 32px 16px 72px;
+      }
+      .hero-grid {
+        gap: 32px;
+        margin-bottom: 52px;
+      }
+      .hero-title {
+        font-size: 36px;
+        line-height: 1.2;
+        margin-bottom: 14px;
+      }
+      .hero-subtitle {
+        font-size: 15.5px;
+        line-height: 25px;
+        margin-bottom: 22px;
+      }
+      .search-box-trigger {
+        max-width: 100%;
+      }
+      .code-showcase-tabs {
+        padding: 8px 10px;
+        gap: 6px;
+      }
+      .code-tab-list {
+        gap: 4px;
+        overflow-x: auto;
+        scrollbar-width: none;
+      }
+      .code-tab-btn {
+        padding: 5px 9px;
+        font-size: 12.5px;
+      }
+      .hero-live-canvas-pane,
+      .inline-live-stage,
+      .pg-stage-canvas-wrap {
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+        min-height: 0;
+        padding: 8px;
+      }
+      .hero-live-caption,
+      .inline-live-bar {
+        padding: 9px 12px;
+        font-size: 12.5px;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .strip-card {
+        padding: 14px 15px;
+        font-size: 15px;
+      }
+
+      .interior-shell {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .docs-sidebar {
+        display: block;
+        position: fixed;
+        top: var(--header-h);
+        left: 0;
+        bottom: 0;
+        width: min(82vw, 300px);
+        height: calc(100vh - var(--header-h));
+        background: var(--bg-canvas);
+        z-index: 200;
+        transform: translateX(-105%);
+        transition: transform 0.2s cubic-bezier(0.165, 0.84, 0.44, 1);
+        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.14);
+        padding: 18px 14px 48px 16px;
+      }
+      .docs-sidebar.mobile-open {
+        transform: translateX(0);
+      }
+      .docs-main,
+      .docs-main.is-playground {
+        padding: 20px 16px 64px;
+        max-width: 100%;
+      }
+      .docs-title-row {
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+      }
+      .docs-h1 {
+        font-size: 26px;
+        line-height: 1.28;
+      }
+      .copy-page-btn {
+        padding: 6px 11px;
+        font-size: 12.5px;
+      }
+      .docs-lead {
+        font-size: 15px;
+        line-height: 24px;
+        margin-bottom: 20px;
+      }
+      h2.doc-h2 {
+        font-size: 19px;
+        line-height: 27px;
+        margin: 28px 0 12px;
+      }
+      p.doc-p {
+        font-size: 15px;
+        line-height: 24px;
+      }
+      .hairline-callout {
+        padding: 12px 14px;
+        font-size: 14px;
+        line-height: 22px;
+        gap: 10px;
+      }
+      table.clean-table {
+        font-size: 13.5px;
+        line-height: 20px;
+      }
+      table.clean-table th,
+      table.clean-table td {
+        padding: 10px 12px;
+      }
+      table.clean-table td:first-child {
+        white-space: normal;
+        min-width: 84px;
+      }
+      .doc-code-pre {
+        padding: 14px;
+        font-size: 13px;
+        line-height: 20px;
+      }
+      .c-item-card {
+        padding: 14px 15px;
+      }
+      .pg-toolbar {
+        padding: 10px 12px;
+        gap: 10px;
+      }
+      .pg-toolbar-left {
+        width: 100%;
+      }
+      .pg-select {
+        flex: 1;
+        min-width: 0;
+        width: 100%;
+      }
+      .pg-toolbar-right {
+        width: 100%;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .pg-toolbar-right .btn-outline-sm,
+      .pg-toolbar-right .btn-solid-sm {
+        padding: 7px 12px;
+        font-size: 13.5px;
+      }
+      .playground-textarea {
+        min-height: 260px;
+        padding: 12px 14px;
+        font-size: 12.5px;
+      }
+      .pg-split {
+        min-height: 0;
+      }
+      .doc-pager {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 10px;
+        margin-top: 36px;
+        padding-top: 20px;
+      }
+      .pager-card.next {
+        text-align: left;
+        align-items: flex-start;
+      }
+      .site-footer-note {
+        margin-top: 44px;
+        font-size: 12px;
+        line-height: 19px;
+      }
+    }
+
+    .site-footer-note {
+      margin-top: 64px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border-hairline);
+      font-size: 12.5px;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+  
+    /* === Motion Studies Micro-Interactions === */
+    :root {
+      --spring-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
+      --spring-settle: cubic-bezier(0.22, 1, 0.36, 1);
+      --spring-soft: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .icon-btn, .lang-switch-btn, .btn-solid-sm, .btn-outline-sm, .copy-page-btn {
+      transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease, box-shadow 0.2s ease, transform 0.22s var(--spring-pop);
+    }
+    .icon-btn:active, .lang-switch-btn:active, .btn-solid-sm:active, .btn-outline-sm:active, .copy-page-btn:active {
+      transform: scale(0.94);
+    }
+    .icon-btn.is-copied {
+      color: #16a34a !important;
+      background: rgba(22, 163, 74, 0.10) !important;
+    }
+    [data-theme="dark"] .icon-btn.is-copied {
+      color: #4ade80 !important;
+      background: rgba(74, 222, 128, 0.14) !important;
+    }
+    .icon-btn.is-copied svg, .copy-page-btn.is-copied svg {
+      animation: wspCheckPop 0.34s var(--spring-pop);
+    }
+    .copy-page-btn.is-copied {
+      color: #16a34a !important;
+      border-color: rgba(22, 163, 74, 0.35) !important;
+    }
+    [data-theme="dark"] .copy-page-btn.is-copied {
+      color: #4ade80 !important;
+      border-color: rgba(74, 222, 128, 0.35) !important;
+    }
+    @keyframes wspCheckPop {
+      0% { transform: scale(0.45) rotate(-14deg); opacity: 0; }
+      65% { transform: scale(1.16) rotate(4deg); opacity: 1; }
+      100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+    .btn-solid-sm.is-run-ok {
+      background: #15803d !important;
+      color: #ffffff !important;
+      transform: scale(1.02);
+    }
+    .btn-solid-sm.is-run-err {
+      background: #dc2626 !important;
+      color: #ffffff !important;
+      animation: wspShakeX 0.36s var(--spring-settle);
+    }
+    @keyframes wspShakeX {
+      0%, 100% { transform: translateX(0); }
+      22% { transform: translateX(-4px); }
+      48% { transform: translateX(4px); }
+      74% { transform: translateX(-2px); }
+    }
+    .filter-pills-row {
+      position: relative;
+    }
+    .pill-slider-bg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      border-radius: 8px;
+      background: var(--text-primary);
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0;
+      transition: transform 0.36s var(--spring-settle), width 0.36s var(--spring-settle), height 0.28s var(--spring-settle), opacity 0.18s ease;
+      will-change: transform, width;
+    }
+    .cat-pill {
+      position: relative;
+      z-index: 1;
+      transition: color 0.2s ease, box-shadow 0.2s ease, transform 0.2s var(--spring-pop), background-color 0.2s ease;
+    }
+    .cat-pill:active { transform: scale(0.95); }
+    .filter-pills-row.has-slider .cat-pill.active {
+      background: transparent !important;
+      box-shadow: none !important;
+      color: var(--bg-canvas);
+    }
+    .modal-mask {
+      display: flex !important;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      backdrop-filter: blur(0px);
+      -webkit-backdrop-filter: blur(0px);
+      transition: opacity 0.22s var(--spring-soft), visibility 0.22s, backdrop-filter 0.24s ease;
+    }
+    .modal-mask.open {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+    }
+    .modal-box {
+      opacity: 0;
+      transform: translateY(-10px) scale(0.97);
+      transition: transform 0.28s var(--spring-settle), opacity 0.2s ease;
+      will-change: transform, opacity;
+    }
+    .modal-mask.open .modal-box {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    .modal-row {
+      transition: background-color 0.14s ease, transform 0.18s var(--spring-settle);
+    }
+    .modal-row:hover, .modal-row.is-selected {
+      background: var(--bg-subtle);
+    }
+    .modal-row:active {
+      transform: scale(0.99);
+    }
+    .morph-tooltip {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 1200;
+      pointer-events: none;
+      padding: 5px 10px;
+      border-radius: 7px;
+      font-family: var(--font-sans);
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 1.3;
+      white-space: nowrap;
+      background: var(--text-primary);
+      color: var(--bg-canvas);
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.16);
+      opacity: 0;
+      transform: translate3d(0, 0, 0) scale(0.92);
+      transition: transform 0.24s var(--spring-settle), opacity 0.16s ease, width 0.22s var(--spring-settle);
+      will-change: transform, opacity;
+    }
+    .morph-tooltip.visible {
+      opacity: 1;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .pill-slider-bg, .modal-mask, .modal-box, .morph-tooltip,
+      .icon-btn, .lang-switch-btn, .btn-solid-sm, .cat-pill {
+        transition: none !important;
+        animation: none !important;
+      }
+    }
+
+  </style>
+</head>
+<body>
+
+  
+  <svg style="display:none" aria-hidden="true">
+    <symbol id="ic-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+    <symbol id="ic-book" viewBox="0 0 24 24"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></symbol>
+    <symbol id="ic-code" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></symbol>
+    <symbol id="ic-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+    <symbol id="ic-terminal" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></symbol>
+    <symbol id="ic-layers" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></symbol>
+    <symbol id="ic-compass" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><path d="m10.5 6.8-5.5 14.2M13.5 6.8l5.5 14.2M7 15h10"/></symbol>
+    <symbol id="ic-play" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></symbol>
+    <symbol id="ic-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></symbol>
+    <symbol id="ic-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+    <symbol id="ic-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></symbol>
+    <symbol id="ic-arrow-right" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></symbol>
+    <symbol id="ic-menu" viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></symbol>
+    <symbol id="ic-sliders" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></symbol>
+    <symbol id="ic-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
+    <symbol id="ic-github" viewBox="0 0 24 24"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></symbol>
+  </svg>
+
+  
+  <header class="global-header">
+    <div style="display:flex;align-items:center;min-width:0;">
+      <button class="icon-btn mobile-menu-btn" onclick="toggleMobileDrawer()" title="打开目录" aria-label="打开目录">
+        <svg class="icon"><use href="#ic-menu"/></svg>
+      </button>
+      <a class="header-left" onclick="openHomePortal()">
+      <svg class="geo-emblem" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+        
+        <path d="M 6 22 L 14 5 L 22 22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M 8.5 16.5 A 7.5 7.5 0 0 0 19.5 16.5" stroke="#184F95" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="14" cy="5.5" r="2.6" fill="#D63628"/>
+        <circle cx="6" cy="22" r="2" fill="currentColor"/>
+        <circle cx="22" cy="22" r="2" fill="currentColor"/>
+      </svg>
+      <span class="brand-name">Web Sketchpad 语法手册</span>
+      </a>
+    </div>
+
+    <div class="header-right">
+      <button class="lang-switch-btn" onclick="switchLanguage('en.html')" title="Switch to English">EN</button>
+      <a class="icon-btn" href="https://github.com/xwxYa/web-sketchpad-docs" target="_blank" rel="noopener noreferrer" title="GitHub 开源仓库" aria-label="GitHub 开源仓库" style="text-decoration:none">
+        <svg class="icon"><use href="#ic-github"/></svg>
+      </a>
+      <button class="icon-btn" onclick="openSearchModal()" title="搜索">
+        <svg class="icon"><use href="#ic-search"/></svg>
+      </button>
+      <button class="icon-btn" onclick="toggleTheme()" id="themeToggleBtn" title="切换浅色/深色主题">
+        <svg class="icon" id="themeIconUse"><use href="#ic-moon"/></svg>
+      </button>
+    </div>
+  </header>
+
+  
+  <div class="portal-container" id="portalView">
+    
+    <section class="hero-grid">
+      <div>
+        <div class="eyebrow">Web Sketchpad 文档参考</div>
+        <h1 class="hero-title">开始使用<br>Web Sketch 构建</h1>
+        <p class="hero-subtitle">用声明式 JSON 描述点、线、圆、函数与几何变换，在网页中直接渲染可交互的动态几何图形。</p>
+
+        <div class="hero-actions-stack">
+          <div class="search-box-trigger" onclick="openSearchModal()">
+            <span style="display:inline-flex;align-items:center;gap:9px;">
+              <svg class="icon"><use href="#ic-search"/></svg>
+              <span>搜索语法、对象或约束...</span>
+            </span>
+            <span class="kbd-group">
+              <span class="kbd-cap">Ctrl</span>
+              <span class="kbd-cap">K</span>
+            </span>
+          </div>
+
+          <button class="btn-outline-sm" onclick="openInteriorPage('quickstart')">
+            <svg class="icon"><use href="#ic-book"/></svg>
+            <span>快速入门</span>
+          </button>
+        </div>
+      </div>
+
+      
+      <div class="code-showcase-card">
+        <div class="code-showcase-tabs">
+          <div class="code-tab-list">
+            <button class="code-tab-btn active" onclick="switchHeroCodeTab('live', this)">交互画布</button>
+            <button class="code-tab-btn" onclick="switchHeroCodeTab('json', this)">文档骨架</button>
+            <button class="code-tab-btn" onclick="switchHeroCodeTab('html', this)">HTML 挂载</button>
+          </div>
+          <button class="icon-btn" onclick="copyHeroCode()" id="heroCopyBtn" title="复制代码" style="width:30px;height:30px;">
+            <svg class="icon"><use href="#ic-copy"/></svg>
+          </button>
+        </div>
+        <div id="heroLivePane">
+          <div class="hero-live-canvas-pane">
+            <div id="heroLiveMount"></div>
+          </div>
+          <div class="hero-live-caption">
+            <span>直接拖动红色顶点 A、B、C，体验几何约束实时重算</span>
+            <span style="font-family:var(--font-mono);">Q4 2026</span>
+          </div>
+        </div>
+        <div class="code-showcase-body" id="heroCodeBody"></div>
+      </div>
+    </section>
+
+    
+    <section class="home-section">
+      <div class="home-section-title">基础与核心模型</div>
+      <div class="clean-strip-grid">
+        <div class="strip-card" onclick="openInteriorPage('quickstart')">
+          <div class="strip-card-left"><svg class="icon"><use href="#ic-code"/></svg><span>最小文档骨架</span></div>
+          <svg class="icon" style="color:var(--text-muted);width:15px;height:15px;"><use href="#ic-arrow-right"/></svg>
+        </div>
+        <div class="strip-card" onclick="openInteriorPage('architecture')">
+          <div class="strip-card-left"><svg class="icon"><use href="#ic-layers"/></svg><span>文档结构与四元组模型</span></div>
+          <svg class="icon" style="color:var(--text-muted);width:15px;height:15px;"><use href="#ic-arrow-right"/></svg>
+        </div>
+        <div class="strip-card" onclick="openInteriorPage('coordinates')">
+          <div class="strip-card-left"><svg class="icon"><use href="#ic-compass"/></svg><span>像素坐标系与单位换算</span></div>
+          <svg class="icon" style="color:var(--text-muted);width:15px;height:15px;"><use href="#ic-arrow-right"/></svg>
+        </div>
+        <div class="strip-card" onclick="openInteriorPage('styles')">
+          <div class="strip-card-left"><svg class="icon"><use href="#ic-book"/></svg><span>视觉样式与渲染图层</span></div>
+          <svg class="icon" style="color:var(--text-muted);width:15px;height:15px;"><use href="#ic-arrow-right"/></svg>
+        </div>
+        <div class="strip-card" onclick="openInteriorPage('troubleshooting')">
+          <div class="strip-card-left"><svg class="icon"><use href="#ic-info"/></svg><span>校验规则与排障自检</span></div>
+          <svg class="icon" style="color:var(--text-muted);width:15px;height:15px;"><use href="#ic-arrow-right"/></svg>
+        </div>
+        <div class="strip-card" onclick="openInteriorPage('intro')">
+          <div class="strip-card-left"><svg class="icon"><use href="#ic-terminal"/></svg><span>引擎架构简介</span></div>
+          <svg class="icon" style="color:var(--text-muted);width:15px;height:15px;"><use href="#ic-arrow-right"/></svg>
+        </div>
+      </div>
+    </section>
+
+    <section class="home-section">
+      <div class="home-section-title">几何构造指南</div>
+      <div class="clean-strip-grid">
+        <div class="strip-card" onclick="openInteriorPage('guide-euclidean')">
+          <div class="strip-card-left"><svg class="icon"><use href="#ic-compass"/></svg><span>点、直线系与交点</span></div>
+          <svg class="icon" style="color:var(--text-muted);width:15px;height:15px;"><use href="#ic-arrow-right"/></svg>
+        </div>
+        <div class="strip-card" onclick="openInteriorPage('guide-shapes')">
+          <div class="strip-card-left"><svg class="icon"><use href="#ic-layers"/></svg><span>圆、圆弧、多边形与角标</span></div>
+          <svg class="icon" style="color:var(--text-muted);width:15px;height:15px;"><use href="#ic-arrow-right"/></svg>
+        </div>
+        <div class="strip-card" onclick="openInteriorPage('guide-measures')">
+          <div class="strip-card-left"><svg class="icon"><use href="#ic-terminal"/></svg><span>几何度量与表达式计算</span></div>
+          <svg class="icon" style="color:var(--text-muted);width:15px;height:15px;"><use href="#ic-arrow-right"/></svg>
+        </div>
+        <div class="strip-card" onclick="openInteriorPage('guide-functions')">
+          <div class="strip-card-left"><svg class="icon"><use href="#ic-code"/></svg><span>坐标系、函数图象与交点</span></div>
+          <svg class="icon" style="color:var(--text-muted);width:15px;height:15px;"><use href="#ic-arrow-right"/></svg>
+        </div>
+        <div class="strip-card" onclick="openInteriorPage('guide-transforms')">
+          <div class="strip-card-left"><svg class="icon"><use href="#ic-compass"/></svg><span>几何变换与分形迭代</span></div>
+          <svg class="icon" style="color:var(--text-muted);width:15px;height:15px;"><use href="#ic-arrow-right"/></svg>
+        </div>
+        <div class="strip-card" onclick="openInteriorPage('guide-buttons')">
+          <div class="strip-card-left"><svg class="icon"><use href="#ic-play"/></svg><span>交互动作按钮与动画</span></div>
+          <svg class="icon" style="color:var(--text-muted);width:15px;height:15px;"><use href="#ic-arrow-right"/></svg>
+        </div>
+      </div>
+    </section>
+
+    <section class="home-section">
+      <div class="home-section-title">网页集成与进阶</div>
+      <div class="clean-strip-grid">
+        <div class="strip-card" onclick="openInteriorPage('web-widgets')">
+          <div class="strip-card-left"><svg class="icon"><use href="#ic-sliders"/></svg><span>网页嵌入与小部件配置</span></div>
+          <svg class="icon" style="color:var(--text-muted);width:15px;height:15px;"><use href="#ic-arrow-right"/></svg>
+        </div>
+        <div class="strip-card" onclick="openInteriorPage('web-multipage')">
+          <div class="strip-card-left"><svg class="icon"><use href="#ic-layers"/></svg><span>多页联动与画布重置</span></div>
+          <svg class="icon" style="color:var(--text-muted);width:15px;height:15px;"><use href="#ic-arrow-right"/></svg>
+        </div>
+        <div class="strip-card" onclick="openInteriorPage('web-tools-a11y')">
+          <div class="strip-card-left"><svg class="icon"><use href="#ic-terminal"/></svg><span>多边形工具与无障碍协议</span></div>
+          <svg class="icon" style="color:var(--text-muted);width:15px;height:15px;"><use href="#ic-arrow-right"/></svg>
+        </div>
+      </div>
+    </section>
+
+    <section class="home-section">
+      <div class="home-section-title">索引字典与交互沙盒</div>
+      <div class="clean-strip-grid">
+        <div class="strip-card" onclick="openInteriorPage('ref-kinds')">
+          <div class="strip-card-left"><svg class="icon"><use href="#ic-book"/></svg><span>几何对象大类</span></div>
+          <svg class="icon" style="color:var(--text-muted);width:15px;height:15px;"><use href="#ic-arrow-right"/></svg>
+        </div>
+        <div class="strip-card" onclick="openInteriorPage('ref-constraints')">
+          <div class="strip-card-left"><svg class="icon"><use href="#ic-code"/></svg><span>几何约束字典</span></div>
+          <svg class="icon" style="color:var(--text-muted);width:15px;height:15px;"><use href="#ic-arrow-right"/></svg>
+        </div>
+        <div class="strip-card" onclick="openInteriorPage('playground')">
+          <div class="strip-card-left"><svg class="icon"><use href="#ic-play"/></svg><span>在线交互沙盒</span></div>
+          <svg class="icon" style="color:var(--text-muted);width:15px;height:15px;"><use href="#ic-arrow-right"/></svg>
+        </div>
+      </div>
+    </section>
+    <footer class="site-footer-note"><span>非官方社区技术参考文档 · 与 KCP Technologies / McGraw-Hill Education 无隶属关系</span><span>Web Sketchpad 商标与引擎版权归原权利人所有</span></footer>
+  </div>
+
+  <div class="interior-shell" id="interiorView">
+    <div class="mobile-drawer-mask" id="mobileDrawerMask" onclick="closeMobileDrawer()"></div>
+    <aside class="docs-sidebar" id="docsSidebar">
+      <div class="search-box-trigger" onclick="openSearchModal()">
+        <span style="display:inline-flex;align-items:center;gap:8px;">
+          <svg class="icon"><use href="#ic-search"/></svg>
+          <span>搜索...</span>
+        </span>
+        <span class="kbd-group">
+          <span class="kbd-cap">Ctrl</span>
+          <span class="kbd-cap">K</span>
+        </span>
+      </div>
+
+      <div class="sidebar-group">
+        <div class="sidebar-group-label">入门与排障</div>
+        <div class="sidebar-item" data-page="intro" onclick="openInteriorPage('intro')"><span>引擎架构简介</span></div>
+        <div class="sidebar-item active" data-page="quickstart" onclick="openInteriorPage('quickstart')"><span>最小文档骨架</span></div>
+        <div class="sidebar-item" data-page="troubleshooting" onclick="openInteriorPage('troubleshooting')"><span>校验规则与排障自检</span></div>
+      </div>
+
+      <div class="sidebar-group">
+        <div class="sidebar-group-label">核心数据模型</div>
+        <div class="sidebar-item" data-page="architecture" onclick="openInteriorPage('architecture')"><span>文档结构与四元组模型</span></div>
+        <div class="sidebar-item" data-page="coordinates" onclick="openInteriorPage('coordinates')"><span>像素坐标系与单位换算</span></div>
+        <div class="sidebar-item" data-page="styles" onclick="openInteriorPage('styles')"><span>视觉样式与渲染图层</span></div>
+      </div>
+
+      <div class="sidebar-group">
+        <div class="sidebar-group-label">几何构造指南</div>
+        <div class="sidebar-item" data-page="guide-euclidean" onclick="openInteriorPage('guide-euclidean')"><span>点、直线系与交点</span></div>
+        <div class="sidebar-item" data-page="guide-shapes" onclick="openInteriorPage('guide-shapes')"><span>圆、圆弧、多边形与角标</span></div>
+        <div class="sidebar-item" data-page="guide-measures" onclick="openInteriorPage('guide-measures')"><span>几何度量与表达式计算</span></div>
+        <div class="sidebar-item" data-page="guide-functions" onclick="openInteriorPage('guide-functions')"><span>坐标系、函数图象与交点</span></div>
+        <div class="sidebar-item" data-page="guide-transforms" onclick="openInteriorPage('guide-transforms')"><span>几何变换与分形迭代</span></div>
+        <div class="sidebar-item" data-page="guide-buttons" onclick="openInteriorPage('guide-buttons')"><span>交互动作按钮与动画</span></div>
+      </div>
+
+      <div class="sidebar-group">
+        <div class="sidebar-group-label">网页集成与进阶</div>
+        <div class="sidebar-item" data-page="web-widgets" onclick="openInteriorPage('web-widgets')"><span>网页嵌入与小部件配置</span></div>
+        <div class="sidebar-item" data-page="web-multipage" onclick="openInteriorPage('web-multipage')"><span>多页联动与画布重置</span></div>
+        <div class="sidebar-item" data-page="web-tools-a11y" onclick="openInteriorPage('web-tools-a11y')"><span>多边形工具与无障碍协议</span></div>
+      </div>
+
+      <div class="sidebar-group">
+        <div class="sidebar-group-label">索引字典与沙盒</div>
+        <div class="sidebar-item" data-page="ref-kinds" onclick="openInteriorPage('ref-kinds')"><span>几何对象大类</span></div>
+        <div class="sidebar-item" data-page="ref-constraints" onclick="openInteriorPage('ref-constraints')"><span>几何约束字典</span></div>
+        <div class="sidebar-item" data-page="playground" onclick="openInteriorPage('playground')"><span>在线交互沙盒</span></div>
+        <div class="sidebar-item" data-page="llm-spec" onclick="openInteriorPage('llm-spec')"><span>Agent Skills</span></div>
+      </div>
+    </aside>
+
+    <main class="docs-main" id="docsMainArticle"></main>
+  </div>
+
+  
+  <div class="modal-mask" id="searchModal" onclick="if(event.target===this)closeSearchModal()">
+    <div class="modal-box">
+      <input type="text" class="modal-input" id="globalSearchInput" placeholder="搜索语法、对象大类或约束名称..." oninput="renderGlobalSearch(this.value)" />
+      <div class="modal-list" id="globalSearchResults"></div>
+    </div>
+  </div>
+
+  <script>
+    function makeSketch(width, height, objects) {
+      return {
+        metadata: { width: width, height: height, "wsp-version": "4.8.0", "start-page": "1" },
+        resources: { fontList: ["\"Arial\", sans-serif", "\"Times New Roman\", serif"] },
+        pages: [{
+          metadata: { title: "Sketch", id: "1", sketchRect: { top: 0, left: 0, bottom: height, right: width } },
+          preferences: {
+            units: { length: "cm", angle: "deg" },
+            precision: { length: 2, angle: 2, scalar: 2 },
+            colorableComponents: { Background: { color: "white" } },
+            text: { mathItalicization: true, textTypes: {} }
+          },
+          objects: objects
+        }]
+      };
+    }
+
+    const PRESET_SKETCHES = {
+      minimal: makeSketch(660, 300, {
+        "1": { kind: "Point", genus: "Point", constraint: "Free", geom: { loc: { x: 170, y: 155 } }, label: "A", style: { color: "#D63628", label: { showLabel: true, labelOffsetX: -18, labelOffsetY: 14 } } },
+        "2": { kind: "Point", genus: "Point", constraint: "Free", geom: { loc: { x: 490, y: 155 } }, label: "B", style: { color: "#D63628", label: { showLabel: true, labelOffsetX: 10, labelOffsetY: 14 } } },
+        "3": { kind: "Straight", genus: "Segment", constraint: "Segment", parents: { p0: "1", p1: "2" }, style: { color: "#184F95", width: 2.5 } },
+        "4": { kind: "Measure", genus: "DistanceMeasure", constraint: "MeasurementLength", parents: { path: "3" }, geom: { loc: { x: 24, y: 24 } }, style: { "font-size": 15, precision: 2, nameOrigin: "namedFromTemplate" } }
+      }),
+
+      euclidean: makeSketch(600, 320, {
+        "1": { kind: "Point", genus: "Point", constraint: "Free", geom: { loc: { x: 120, y: 265 } }, label: "A", style: { color: "#D63628", label: { showLabel: true, labelOffsetX: -18, labelOffsetY: 15 } } },
+        "2": { kind: "Point", genus: "Point", constraint: "Free", geom: { loc: { x: 480, y: 265 } }, label: "B", style: { color: "#D63628", label: { showLabel: true, labelOffsetX: 8, labelOffsetY: 15 } } },
+        "3": { kind: "Point", genus: "Point", constraint: "Free", geom: { loc: { x: 260, y: 62 } }, label: "C", style: { color: "#D63628", label: { showLabel: true, labelOffsetX: -5, labelOffsetY: -12 } } },
+        "4": { kind: "Polygon", genus: "Triangle", constraint: "PolygonFromPoints", parents: { "0": "1", "1": "2", "2": "3" }, style: { color: "rgb(225,236,252)", layerOrder: 0 } },
+        "5": { kind: "Straight", genus: "Segment", constraint: "Segment", parents: { p0: "1", p1: "2" }, style: { color: "#184F95", width: 2 } },
+        "6": { kind: "Straight", genus: "Segment", constraint: "Segment", parents: { p0: "2", p1: "3" }, style: { color: "#184F95", width: 2 } },
+        "7": { kind: "Straight", genus: "Segment", constraint: "Segment", parents: { p0: "3", p1: "1" }, style: { color: "#184F95", width: 2 } },
+        "8": { kind: "Point", genus: "Midpoint", constraint: "Midpoint", parents: { path: "5" }, label: "M", style: { color: "#184F95", label: { showLabel: true, labelOffsetX: -5, labelOffsetY: 18 } } },
+        "9": { kind: "Straight", genus: "Perpendicular", constraint: "Perpendicular", parents: { p0: "3", line: "5" }, style: { color: "#0D7A5F", width: 1.4 } },
+        "10": { kind: "Point", genus: "Intersection", constraint: "Intersection", parents: { line0: "5", line1: "9" }, label: "H", style: { color: "#0B0B0B", label: { showLabel: true, labelOffsetX: 6, labelOffsetY: 16 } } },
+        "11": { kind: "Straight", genus: "Parallel", constraint: "Parallel", parents: { p0: "3", line: "5" }, style: { color: "#64748B", width: 1.2 } },
+        "12": { kind: "Straight", genus: "Bisector", constraint: "AngleBisector", parents: { A: "2", B: "1", C: "3" }, style: { color: "#D97706", width: 1.5 } },
+        "13": { kind: "AngleMarker", genus: "AngleMarker", constraint: "AngleMarker_Simple", parents: { p0: "3", p1: "2", p2: "1" }, style: { color: "#184F95", "inner-radius": 24, width: 2 } },
+        "14": { kind: "Measure", genus: "AngleMeasure", constraint: "MeasurementAngle", parents: { p0: "2", p1: "1", p2: "3" }, geom: { loc: { x: 18, y: 18 } }, style: { "font-size": 14, precision: 1, nameOrigin: "namedFromTemplate" } },
+        "15": { kind: "Measure", genus: "AreaMeasure", constraint: "MeasurementArea", parents: { shape: "4" }, geom: { loc: { x: 18, y: 42 } }, style: { "font-size": 14, precision: 2, nameOrigin: "namedFromTemplate" } }
+      }),
+
+      euclideanPure: makeSketch(600, 320, {
+        "1": { kind: "Point", genus: "Point", constraint: "Free", geom: { loc: { x: 120, y: 265 } }, label: "A", style: { color: "#D63628", label: { showLabel: true, labelOffsetX: -18, labelOffsetY: 15 } } },
+        "2": { kind: "Point", genus: "Point", constraint: "Free", geom: { loc: { x: 480, y: 265 } }, label: "B", style: { color: "#D63628", label: { showLabel: true, labelOffsetX: 8, labelOffsetY: 15 } } },
+        "3": { kind: "Point", genus: "Point", constraint: "Free", geom: { loc: { x: 260, y: 62 } }, label: "C", style: { color: "#D63628", label: { showLabel: true, labelOffsetX: -5, labelOffsetY: -12 } } },
+        "4": { kind: "Polygon", genus: "Triangle", constraint: "PolygonFromPoints", parents: { "0": "1", "1": "2", "2": "3" }, style: { color: "rgb(225,236,252)", layerOrder: 0, selectable: false } },
+        "5": { kind: "Straight", genus: "Segment", constraint: "Segment", parents: { p0: "1", p1: "2" }, style: { color: "#184F95", width: 2 } },
+        "6": { kind: "Straight", genus: "Segment", constraint: "Segment", parents: { p0: "2", p1: "3" }, style: { color: "#184F95", width: 2 } },
+        "7": { kind: "Straight", genus: "Segment", constraint: "Segment", parents: { p0: "3", p1: "1" }, style: { color: "#184F95", width: 2 } },
+        "8": { kind: "Point", genus: "Midpoint", constraint: "Midpoint", parents: { path: "5" }, label: "M", style: { color: "#184F95", label: { showLabel: true, labelOffsetX: -5, labelOffsetY: 18 } } },
+        "9": { kind: "Straight", genus: "Perpendicular", constraint: "Perpendicular", parents: { p0: "3", line: "5" }, style: { color: "#0D7A5F", width: 1.4 } },
+        "10": { kind: "Point", genus: "Intersection", constraint: "Intersection", parents: { line0: "5", line1: "9" }, label: "H", style: { color: "#0B0B0B", label: { showLabel: true, labelOffsetX: 6, labelOffsetY: 16 } } },
+        "11": { kind: "Straight", genus: "Parallel", constraint: "Parallel", parents: { p0: "3", line: "5" }, style: { color: "#64748B", width: 1.2 } },
+        "12": { kind: "Straight", genus: "Bisector", constraint: "AngleBisector", parents: { A: "2", B: "1", C: "3" }, style: { color: "#D97706", width: 1.5 } },
+        "13": { kind: "AngleMarker", genus: "AngleMarker", constraint: "AngleMarker_Simple", parents: { p0: "3", p1: "2", p2: "1" }, style: { color: "#184F95", "inner-radius": 24, width: 2 } }
+      }),
+
+      equilateral: makeSketch(600, 310, {
+        "1": { kind: "Point", genus: "Point", constraint: "Free", geom: { loc: { x: 250, y: 165 } }, label: "A", style: { color: "#D63628", label: { showLabel: true, labelOffsetX: -18, labelOffsetY: 14 } } },
+        "2": { kind: "Point", genus: "Point", constraint: "Free", geom: { loc: { x: 350, y: 165 } }, label: "B", style: { color: "#D63628", label: { showLabel: true, labelOffsetX: 10, labelOffsetY: 14 } } },
+        "3": { kind: "Circle", genus: "Circle", constraint: "CircleFromTwoPoints", parents: { p0: "1", p1: "2" }, style: { color: "#184F95", width: 1.5 } },
+        "4": { kind: "Circle", genus: "Circle", constraint: "CircleFromTwoPoints", parents: { p0: "2", p1: "1" }, style: { color: "#0D7A5F", "line-style": "dashed", width: 1.5 } },
+        "5": { kind: "Point", genus: "Intersection", constraint: "Intersection1", parents: { circle: "3", obj: "4" }, label: "C", style: { color: "#0B0B0B", label: { showLabel: true, labelOffsetX: -4, labelOffsetY: 18 } } },
+        "6": { kind: "Polygon", genus: "Triangle", constraint: "PolygonFromPoints", parents: { "0": "1", "1": "2", "2": "5" }, style: { color: "rgb(225,236,252)", layerOrder: 0 } },
+        "7": { kind: "Straight", genus: "Segment", constraint: "Segment", parents: { p0: "1", p1: "2" }, style: { color: "#184F95", width: 2.2 } },
+        "8": { kind: "Straight", genus: "Segment", constraint: "Segment", parents: { p0: "1", p1: "5" }, style: { color: "#184F95", width: 2.2 } },
+        "9": { kind: "Straight", genus: "Segment", constraint: "Segment", parents: { p0: "2", p1: "5" }, style: { color: "#184F95", width: 2.2 } }
+      }),
+
+      
+      parabola: makeSketch(620, 330, {
+        "1": { kind: "Point", genus: "OriginPoint", constraint: "Free", geom: { loc: { x: 310, y: 195 } }, label: "O", style: { color: "#D63628", label: { showLabel: true, labelOffsetX: 6, labelOffsetY: 16 } } },
+        "2": { kind: "Point", genus: "UnitPoint", constraint: "HorizontalUnitPoint", parents: { origin: "1" }, value: 44.0, style: { hidden: true } },
+        "3": { kind: "Axis", genus: "Axis", constraint: "AxisInternalDist", parents: { origin: "1", unitPoint: "2" }, orientation: "horizontal", label: "x", style: { color: "rgb(96,96,96)", width: 1, tickNumbering: true, selectable: false } },
+        "4": { kind: "Point", genus: "UnitPoint", constraint: "UnitPointInternalSquare", parents: { unitPoint: "2" }, style: { hidden: true } },
+        "5": { kind: "Axis", genus: "Axis", constraint: "AxisInternalDist", parents: { origin: "1", unitPoint: "4" }, orientation: "vertical", label: "y", style: { color: "rgb(96,96,96)", width: 1, tickNumbering: true, selectable: false } },
+        "6": { kind: "CoordSys", genus: "CoordSys", constraint: "CoordSys", parents: { axisX: "3", axisY: "5" }, shape: "square", style: { color: "silver", grid: "gridlines", selectable: false } },
+        "7": { kind: "Expression", genus: "ScalarMeasure", constraint: "Calculation", parents: {}, geom: { loc: { x: 18, y: 20 } }, expressionType: "UniMeasure_ExprType", expression: "0.45", label: "a", style: { "font-size": 14, precision: 2, nameOrigin: "namedFromLabel" } },
+        "8": { kind: "Expression", genus: "Function", constraint: "Function", parents: { "0": "7" }, geom: { loc: { x: 18, y: 46 } }, expressionType: "YofX_FunctionExprType", functionExpr: { notation: "function", name: "f", dependentVar: "y", independentVar: "x" }, expression: "@0*x^2-2", label: "f", style: { "font-size": 14 } },
+        "9": { kind: "Sampler", genus: "FunctionPlot", constraint: "FunctionPlot", parents: { function: "8", coordSys: "6" }, numSamples: 180, isDiscrete: false, showEndpoints: true, driverDomain: { low: -6, high: 6 }, style: { color: "#184F95", "line-style": "solid", width: 2.5 } },
+        "10": { kind: "Point", genus: "Point", constraint: "Free", geom: { loc: { x: 170, y: 170 } }, label: "A", style: { color: "#D63628", label: { showLabel: true, labelOffsetX: -14, labelOffsetY: -10 } } },
+        "11": { kind: "Point", genus: "Point", constraint: "Free", geom: { loc: { x: 470, y: 120 } }, label: "B", style: { color: "#D63628", label: { showLabel: true, labelOffsetX: 8, labelOffsetY: -10 } } },
+        "12": { kind: "Straight", genus: "Line", constraint: "Line", parents: { p0: "10", p1: "11" }, style: { color: "#0D7A5F", "line-style": "dashed", width: 1.6 } },
+        "13": { kind: "Point", genus: "Intersection", constraint: "InterApproxPathStitchedPath_C", parents: { "0": "9", "1": "12" }, label: "P[1]", style: { color: "#0B0B0B", radius: 5, label: { showLabel: true, labelOffsetX: -22, labelOffsetY: 16 } } },
+        "14": { kind: "Point", genus: "Intersection", constraint: "InterApproxPathStitchedPath_C", parents: { "0": "9", "1": "12" }, label: "P[2]", style: { color: "#0B0B0B", radius: 5, label: { showLabel: true, labelOffsetX: 8, labelOffsetY: 16 } } }
+      }),
+
+      iteration: makeSketch(600, 330, {
+        "1": { kind: "Point", genus: "Point", constraint: "Free", geom: { loc: { x: 300, y: 310 } }, label: "A", style: { color: "#D63628", label: { showLabel: true, labelOffsetX: -18, labelOffsetY: 10 } } },
+        "2": { kind: "Point", genus: "Point", constraint: "Free", geom: { loc: { x: 300, y: 240 } }, label: "B", style: { color: "#D63628", label: { showLabel: true, labelOffsetX: 10, labelOffsetY: 8 } } },
+        "3": { kind: "Straight", genus: "Segment", constraint: "Segment", parents: { p0: "1", p1: "2" }, style: { color: "#184F95", width: 3 } },
+        "4": { kind: "Point", genus: "Point", constraint: "DilateFixFactor", parents: { source: "1", center: "2" }, scaleFactor: 0.72, style: { hidden: true } },
+        "5": { kind: "Point", genus: "Point", constraint: "Rotate", parents: { source: "4", center: "2" }, angle: 2.55, label: "L", style: { color: "#0D7A5F", label: { showLabel: true, labelOffsetX: -18, labelOffsetY: -6 } } },
+        "6": { kind: "Point", genus: "Point", constraint: "Rotate", parents: { source: "4", center: "2" }, angle: -2.55, label: "R", style: { color: "#0D7A5F", label: { showLabel: true, labelOffsetX: 8, labelOffsetY: -6 } } },
+        "7": { kind: "Straight", genus: "Segment", constraint: "Segment", parents: { p0: "2", p1: "5" }, style: { color: "#0D7A5F", width: 2 } },
+        "8": { kind: "Straight", genus: "Segment", constraint: "Segment", parents: { p0: "2", p1: "6" }, style: { color: "#0D7A5F", width: 2 } },
+        "9": { kind: "Map", genus: "Map", constraint: "IterateMap", parents: { preimage0: "1", preimage1: "2", map0image0: "2", map0image1: "5", map1image0: "2", map1image1: "6", "0": "3" }, currentDepth: 5 },
+        "10": { kind: "IterateImage", genus: "IterateImage", constraint: "IterateImage", parents: { source: "3", map: "9" }, style: { color: "#0D7A5F", width: 1.5 } }
+      })
+    };
+
+    const HERO_CODE_SNIPPETS = {
+      json: `{
+  <span class="syn-p">"metadata"</span>: { <span class="syn-p">"width"</span>: <span class="syn-n">600</span>, <span class="syn-p">"height"</span>: <span class="syn-n">320</span>, <span class="syn-p">"wsp-version"</span>: <span class="syn-s">"4.8.0"</span>, <span class="syn-p">"start-page"</span>: <span class="syn-s">"1"</span> },
+  <span class="syn-p">"resources"</span>: { <span class="syn-p">"fontList"</span>: [<span class="syn-s">"\\"Arial\\", sans-serif"</span>] },
+  <span class="syn-p">"pages"</span>: [{
+    <span class="syn-p">"metadata"</span>: { <span class="syn-p">"id"</span>: <span class="syn-s">"1"</span>, <span class="syn-p">"sketchRect"</span>: { <span class="syn-p">"top"</span>: <span class="syn-n">0</span>, <span class="syn-p">"left"</span>: <span class="syn-n">0</span>, <span class="syn-p">"bottom"</span>: <span class="syn-n">320</span>, <span class="syn-p">"right"</span>: <span class="syn-n">600</span> } },
+    <span class="syn-p">"preferences"</span>: {
+      <span class="syn-p">"units"</span>: { <span class="syn-p">"length"</span>: <span class="syn-s">"cm"</span>, <span class="syn-p">"angle"</span>: <span class="syn-s">"deg"</span> },
+      <span class="syn-p">"precision"</span>: { <span class="syn-p">"length"</span>: <span class="syn-n">2</span>, <span class="syn-p">"angle"</span>: <span class="syn-n">2</span>, <span class="syn-p">"scalar"</span>: <span class="syn-n">2</span> },
+      <span class="syn-p">"colorableComponents"</span>: { <span class="syn-p">"Background"</span>: { <span class="syn-p">"color"</span>: <span class="syn-s">"white"</span> } },
+      <span class="syn-p">"text"</span>: { <span class="syn-p">"mathItalicization"</span>: <span class="syn-k">true</span>, <span class="syn-p">"textTypes"</span>: {} }
+    },
+    <span class="syn-p">"objects"</span>: {
+      <span class="syn-p">"1"</span>: { <span class="syn-p">"kind"</span>: <span class="syn-s">"Point"</span>, <span class="syn-p">"genus"</span>: <span class="syn-s">"Point"</span>, <span class="syn-p">"constraint"</span>: <span class="syn-s">"Free"</span>, <span class="syn-p">"geom"</span>: { <span class="syn-p">"loc"</span>: { <span class="syn-p">"x"</span>: <span class="syn-n">120</span>, <span class="syn-p">"y"</span>: <span class="syn-n">265</span> } }, <span class="syn-p">"label"</span>: <span class="syn-s">"A"</span> },
+      <span class="syn-p">"2"</span>: { <span class="syn-p">"kind"</span>: <span class="syn-s">"Point"</span>, <span class="syn-p">"genus"</span>: <span class="syn-s">"Point"</span>, <span class="syn-p">"constraint"</span>: <span class="syn-s">"Free"</span>, <span class="syn-p">"geom"</span>: { <span class="syn-p">"loc"</span>: { <span class="syn-p">"x"</span>: <span class="syn-n">480</span>, <span class="syn-p">"y"</span>: <span class="syn-n">265</span> } }, <span class="syn-p">"label"</span>: <span class="syn-s">"B"</span> },
+      <span class="syn-p">"5"</span>: { <span class="syn-p">"kind"</span>: <span class="syn-s">"Straight"</span>, <span class="syn-p">"genus"</span>: <span class="syn-s">"Segment"</span>, <span class="syn-p">"constraint"</span>: <span class="syn-s">"Segment"</span>, <span class="syn-p">"parents"</span>: { <span class="syn-p">"p0"</span>: <span class="syn-s">"1"</span>, <span class="syn-p">"p1"</span>: <span class="syn-s">"2"</span> } }
+    }
+  }]
+}`,
+      html: `<span class="syn-k">&lt;!DOCTYPE html&gt;</span>
+<span class="syn-p">&lt;html&gt;</span>
+<span class="syn-p">&lt;head&gt;</span>
+  <span class="syn-p">&lt;meta</span> charset=<span class="syn-s">"utf-8"</span><span class="syn-p">&gt;</span>
+  <span class="syn-p">&lt;script</span> src=<span class="syn-s">"engine/jquery-2.1.0.min.js"</span><span class="syn-p">&gt;&lt;/script&gt;</span>
+  <span class="syn-p">&lt;script</span> src=<span class="syn-s">"engine/wsp-min.js"</span><span class="syn-p">&gt;&lt;/script&gt;</span>
+  <span class="syn-p">&lt;script</span> src=<span class="syn-s">"engine/wsp-runner.js"</span><span class="syn-p">&gt;&lt;/script&gt;</span>
+  <span class="syn-p">&lt;script&gt;</span><span class="syn-k">var</span> mySketch = { <span class="syn-c"></span> };<span class="syn-p">&lt;/script&gt;</span>
+<span class="syn-p">&lt;/head&gt;</span>
+<span class="syn-p">&lt;body&gt;</span>
+  <span class="syn-p">&lt;div</span> class=<span class="syn-s">"sketch_canvas"</span> data-var=<span class="syn-s">"mySketch"</span><span class="syn-p">&gt;&lt;/div&gt;</span>
+<span class="syn-p">&lt;/body&gt;</span>
+<span class="syn-p">&lt;/html&gt;</span>`
+    };
+
+    function fitLiveSketchToStage(containerId, sketchObj) {
+      const el = document.getElementById(containerId);
+      if (!el) return;
+      const node = el.querySelector(".sketch_canvas");
+      if (!node) return;
+      if (sketchObj && sketchObj.metadata) {
+        if (sketchObj.metadata.width) el.dataset.sketchW = String(sketchObj.metadata.width);
+        if (sketchObj.metadata.height) el.dataset.sketchH = String(sketchObj.metadata.height);
+      }
+      const sketchW = parseFloat(el.dataset.sketchW) || node.offsetWidth || 620;
+      const sketchH = parseFloat(el.dataset.sketchH) || node.offsetHeight || 340;
+      const stage = el.parentElement;
+      if (!stage) return;
+      const cs = getComputedStyle(stage);
+      const availW = stage.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+      if (availW > 0 && sketchW > availW) {
+        const scale = availW / sketchW;
+        el.style.width = Math.floor(availW) + "px";
+        el.style.height = Math.ceil(sketchH * scale) + "px";
+        el.style.overflow = "hidden";
+        el.style.position = "relative";
+        node.style.width = sketchW + "px";
+        node.style.height = sketchH + "px";
+        node.style.position = "absolute";
+        node.style.top = "0";
+        node.style.left = "0";
+        node.style.transformOrigin = "top left";
+        node.style.transform = `scale(${scale})`;
+      } else {
+        el.style.width = "";
+        el.style.height = "";
+        el.style.overflow = "";
+        el.style.position = "";
+        node.style.width = "";
+        node.style.height = "";
+        node.style.position = "";
+        node.style.top = "";
+        node.style.left = "";
+        node.style.transformOrigin = "";
+        node.style.transform = "";
+      }
+    }
+
+    function refitAllLiveSketches() {
+      ["heroLiveMount", "inlinePageLiveMount", "liveWspMount"].forEach(id => fitLiveSketchToStage(id));
+    }
+
+    window.addEventListener("resize", () => {
+      requestAnimationFrame(refitAllLiveSketches);
+    });
+
+    function unmountLiveSketch(containerId) {
+      const el = document.getElementById(containerId);
+      if (!el) return;
+      if (window.jQuery) {
+        jQuery(el).find(".sketch_canvas").each(function () {
+          const doc = jQuery(this).data("document");
+          if (doc && typeof doc.stop === "function") {
+            try { doc.stop(); } catch (e) {}
+          }
+          jQuery(this).off().removeData();
+        });
+      }
+      el.innerHTML = "";
+      el.style.width = "";
+      el.style.height = "";
+    }
+
+    function mountLiveSketchTo(containerId, varName, sketchObj) {
+      const el = document.getElementById(containerId);
+      if (!el) return;
+      unmountLiveSketch(containerId);
+      if (!window.jQuery || !jQuery.fn || !jQuery.fn.WSP) {
+        el.innerHTML = `<div class="engine-missing-note">正在从官方源加载 Web Sketchpad 引擎，请稍候…</div>`;
+        if (window.whenWspEngineReady) {
+          window.whenWspEngineReady(function () {
+            if (document.getElementById(containerId)) mountLiveSketchTo(containerId, varName, sketchObj);
+          });
+        }
+        return;
+      }
+      window[varName] = JSON.parse(JSON.stringify(sketchObj));
+      el.innerHTML = `<div class="sketch_canvas" id="${containerId}_node" data-var="${varName}"></div>`;
+      jQuery("#" + containerId + "_node").WSP("loadSketch");
+      fitLiveSketchToStage(containerId, sketchObj);
+      requestAnimationFrame(() => fitLiveSketchToStage(containerId, sketchObj));
+    }
+
+    function switchHeroCodeTab(key, btnEl) {
+      document.querySelectorAll(".code-tab-btn").forEach(b => b.classList.remove("active"));
+      if (btnEl) btnEl.classList.add("active");
+      const livePane = document.getElementById("heroLivePane");
+      const codePane = document.getElementById("heroCodeBody");
+      if (key === "live") {
+        livePane.style.display = "block";
+        codePane.style.display = "none";
+        mountLiveSketchTo("heroLiveMount", "__HERO_LIVE_SKETCH__", PRESET_SKETCHES.euclideanPure);
+      } else {
+        livePane.style.display = "none";
+        codePane.style.display = "block";
+        codePane.innerHTML = HERO_CODE_SNIPPETS[key] || HERO_CODE_SNIPPETS.json;
+      }
+    }
+
+    function copyHeroCode() {
+      const codePane = document.getElementById("heroCodeBody");
+      const text = codePane.style.display === "none"
+        ? JSON.stringify(PRESET_SKETCHES.euclidean, null, 2)
+        : codePane.innerText;
+      navigator.clipboard.writeText(text);
+    }
+
+    // =========================================================================
+    // Interior Documentation Pages (Pure Chinese, Zero Flashy Prefixes)
+    // =========================================================================
+    const PAGES = {
+      "intro": {
+        breadcrumb: "入门与排障 › 架构简介",
+        title: "引擎架构简介",
+        lead: "Web Sketchpad 是几何画板的网页端动态几何求解与渲染引擎。它通过声明式 JSON 描述尺规作图、动态度量、函数轨迹与分形迭代。",
+        html: `
+          <h2 class="doc-h2">1. 两种构建动态几何草图的方式</h2>
+          <div class="table-box">
+            <table class="clean-table">
+              <thead>
+                <tr>
+                  <th>对比项</th>
+                  <th>最小骨架直接编写</th>
+                  <th>桌面端导出模板修改</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>核心原理</td>
+                  <td>直接编写符合协议规范的 JSON 几何约束对象字典</td>
+                  <td>从桌面版执行导出后修改 JSON 节点</td>
+                </tr>
+                <tr>
+                  <td>适用场景</td>
+                  <td>脚本批量生成教学图形、自动化出图、从零精确建模</td>
+                  <td>包含复杂自定义工具或既有存量文件的迁移</td>
+                </tr>
+                <tr>
+                  <td>文件体积</td>
+                  <td>极简纯净，通常仅 1 至 3 KB</td>
+                  <td>包含大量桌面打印偏好与冗余字体列表，通常 15 至 80 KB</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 class="doc-h2">2. 运行环境与三层画布渲染</h2>
+          <div class="diagram-card">
+            <div class="diagram-card-head">
+              <span>原理图 · 三层画布与文本层叠加架构</span>
+              <span style="font-family:var(--font-mono);font-size:12px;">渲染管线</span>
+            </div>
+            <div class="diagram-card-body">
+              <svg width="720" height="235" viewBox="0 0 720 235" fill="none" xmlns="http://www.w3.org/2000/svg">
+                
+                <polygon points="105,175 295,125 465,165 275,215" fill="var(--bg-elevated)" stroke="var(--text-muted)" stroke-width="1.3"/>
+                <line x1="152" y1="162" x2="322" y2="202" stroke="var(--border-hairline)" stroke-width="1"/>
+                <line x1="200" y1="150" x2="370" y2="190" stroke="var(--border-hairline)" stroke-width="1"/>
+                <line x1="248" y1="137" x2="418" y2="177" stroke="var(--border-hairline)" stroke-width="1"/>
+                <line x1="170" y1="190" x2="360" y2="140" stroke="var(--border-hairline)" stroke-width="1"/>
+                <line x1="225" y1="203" x2="415" y2="153" stroke="var(--border-hairline)" stroke-width="1"/>
+
+                
+                <polygon points="105,120 295,70 465,110 275,160" fill="var(--bg-surface)" fill-opacity="0.92" stroke="#184F95" stroke-width="1.6"/>
+                <polygon points="215,124 328,108 286,144" fill="#184F95" fill-opacity="0.14" stroke="#184F95" stroke-width="1.6"/>
+                <circle cx="215" cy="124" r="3.5" fill="#D63628"/>
+                <circle cx="328" cy="108" r="3.5" fill="#D63628"/>
+                <circle cx="286" cy="144" r="3.5" fill="#D63628"/>
+
+                
+                <polygon points="105,65 295,15 465,55 275,105" fill="var(--bg-surface)" fill-opacity="0.86" stroke="#0D7A5F" stroke-width="1.5" stroke-dasharray="5 3"/>
+                <rect x="225" y="47" width="112" height="24" rx="5" fill="var(--bg-elevated)" stroke="#0D7A5F" stroke-width="1.2"/>
+                <text x="236" y="63" fill="var(--text-primary)" font-family="monospace" font-size="11.5">m∠BAC = 60.0°</text>
+
+                
+                <line x1="465" y1="55" x2="505" y2="55" stroke="#0D7A5F" stroke-width="1.2"/>
+                <circle cx="465" cy="55" r="2.8" fill="#0D7A5F"/>
+                <text x="514" y="51" fill="var(--text-primary)" font-size="13.5" font-weight="500">顶层：交互高亮与 DOM 文本层</text>
+                <text x="514" y="69" fill="var(--text-muted)" font-size="12">拖拽选中反馈、度量数值与按钮</text>
+
+                <line x1="465" y1="110" x2="505" y2="110" stroke="#184F95" stroke-width="1.2"/>
+                <circle cx="465" cy="110" r="2.8" fill="#184F95"/>
+                <text x="514" y="106" fill="var(--text-primary)" font-size="13.5" font-weight="500">中层：主几何图元 Canvas</text>
+                <text x="514" y="124" fill="var(--text-muted)" font-size="12">点、直线、圆、多边形与函数曲线</text>
+
+                <line x1="465" y1="165" x2="505" y2="165" stroke="var(--text-muted)" stroke-width="1.2"/>
+                <circle cx="465" cy="165" r="2.8" fill="var(--text-muted)"/>
+                <text x="514" y="161" fill="var(--text-primary)" font-size="13.5" font-weight="500">底层：背景与坐标系网格层</text>
+                <text x="514" y="179" fill="var(--text-muted)" font-size="12">画布底色、坐标栅格与静态轨迹</text>
+              </svg>
+            </div>
+          </div>
+          <p class="doc-p">完整的运行环境包含三个基础脚本：<code class="ic">jquery-2.1.0.min.js</code>、核心求解器 <code class="ic">wsp.js</code>（或压缩版 <code class="ic">wsp-min.js</code>）以及页面挂载脚本 <code class="ic">wsp-runner.js</code>。执行挂载时，引擎会在容器内自动创建三层叠加的画布，分别负责背景网格、主几何图元以及高亮拖拽交互。</p>
+        `
+      },
+
+      "quickstart": {
+        breadcrumb: "入门与排障 › 快速入门",
+        title: "最小文档骨架",
+        lead: "无需借助桌面版几何画板导出模板，只需包含以下必填元数据与页面配置，即可从零编写任意合法的 Web Sketch JSON。",
+        demoPreset: "minimal",
+        demoCaption: "由最小骨架加上两个自由点与一条线段度量直接生成，可拖动红点 A、B",
+        html: `
+          <div class="hairline-callout">
+            <svg class="icon" style="margin-top:3px;"><use href="#ic-info"/></svg>
+            <div><strong>为什么推荐使用全局变量 <code>data-var</code> 挂载？</strong> 本地文件协议下浏览器会拦截外部文件的异步请求，使用 <code>data-var="mySketch"</code> 可在离线与在线环境稳定加载。</div>
+          </div>
+          <div class="hairline-callout">
+            <svg class="icon" style="margin-top:3px;"><use href="#ic-compass"/></svg>
+            <div><strong>构造顺序心法</strong>：<code>objects</code> 字典必须按几何依赖的拓扑顺序编写——先定义自由点或自由参数，再定义依赖它们的直线、圆与交点，最后定义度量、计算式、轨迹与按钮。每个对象的 <code>parents</code> 只能引用编号更靠前的父对象。</div>
+          </div>
+
+          <h2 class="doc-h2">1. 标准最小骨架</h2>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>JSON · 最小必填骨架</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="复制代码"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">{
+  "metadata": {
+    "width": 800,
+    "height": 500,
+    "wsp-version": "4.8.0",
+    "start-page": "1"
+  },
+  "resources": {
+    "fontList": ["\\"Arial\\", sans-serif", "\\"Times New Roman\\", serif"]
+  },
+  "pages": [
+    {
+      "metadata": {
+        "title": "Page 1",
+        "id": "1",
+        "sketchRect": { "top": 0, "left": 0, "bottom": 500, "right": 800 }
+      },
+      "preferences": {
+        "units": { "length": "cm", "angle": "deg" },
+        "precision": { "length": 2, "angle": 2, "scalar": 2 },
+        "colorableComponents": {
+          "Background": { "color": "white" }
+        },
+        "text": {
+          "mathItalicization": true,
+          "textTypes": {}
+        }
+      },
+      "objects": {}
+    }
+  ]
+}</pre>
+          </div>
+
+          <h2 class="doc-h2">2. HTML 页面挂载模板</h2>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>HTML · 引入引擎并渲染</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="复制代码"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+  &lt;meta charset="utf-8"&gt;
+  &lt;script src="engine/jquery-2.1.0.min.js"&gt;&lt;/script&gt;
+  &lt;script src="engine/wsp-min.js"&gt;&lt;/script&gt;
+  &lt;script src="engine/wsp-runner.js"&gt;&lt;/script&gt;
+  &lt;script&gt;var mySketch = { /* 填入上方骨架 */ };&lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;div class="sketch_canvas" data-var="mySketch"&gt;&lt;/div&gt;
+&lt;/body&gt;
+&lt;/html&gt;</pre>
+          </div>
+        `
+      },
+
+      "troubleshooting": {
+        breadcrumb: "入门与排障 › 排障自检",
+        title: "校验规则与排障自检",
+        lead: "解析引擎在初始化阶段执行的必填字段校验，以及如何调用内置自检接口排查空白画布。",
+        html: `
+          <h2 class="doc-h2">1. 导致画布空白的四道校验关卡</h2>
+          <div class="table-box">
+            <table class="clean-table">
+              <thead>
+                <tr>
+                  <th>关卡</th>
+                  <th>所在源码位置</th>
+                  <th>校验逻辑</th>
+                  <th>缺失后果与修复方式</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>关卡 1</td>
+                  <td><code class="ic">wsp-runner.js</code> → <code class="ic">GSP.fixSketch</code></td>
+                  <td><code class="ic">data.metadata['wsp-version'].split('.')</code></td>
+                  <td>缺少 <code class="ic">metadata["wsp-version"]</code> 会立即抛出类型错误中断。必须设为 <code class="ic">"4.8.0"</code> 或 <code class="ic">"4.9.0"</code>。</td>
+                </tr>
+                <tr>
+                  <td>关卡 2</td>
+                  <td><code class="ic">wsp.js</code> → <code class="ic">o.Document</code></td>
+                  <td><code class="ic">if (n !== c) return o.signal({code: "GSP.Error.invalidSketchVersion"})</code></td>
+                  <td>主版本号必须等于 <code class="ic">4</code>，否则被判定为版本不兼容并拒绝挂载画布。</td>
+                </tr>
+                <tr>
+                  <td>关卡 3</td>
+                  <td><code class="ic">wsp-runner.js</code> → <code class="ic">fixPage</code></td>
+                  <td><code class="ic">$.each(page.preferences.text.textTypes, ...)</code></td>
+                  <td>页面级缺少 <code class="ic">preferences.text.textTypes</code> 会导致遍历未定义属性崩溃。至少填 <code class="ic">{}</code>。</td>
+                </tr>
+                <tr>
+                  <td>关卡 4</td>
+                  <td><code class="ic">wsp.js</code> → <code class="ic">Sketch.init</code></td>
+                  <td><code class="ic">r.preferences.colorableComponents.Background.color</code></td>
+                  <td>缺少 <code class="ic">colorableComponents.Background</code> 会导致读取背景色崩溃。必须填 <code class="ic">{"color":"white"}</code>。</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 class="doc-h2">2. 调用引擎内置自检接口</h2>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>JavaScript · 静态支持率检查与运行时状态读取</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="复制代码"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">// 1. 渲染前静态验证所有对象的 kind 与 constraint 是否受支持
+const check = GSP.Sketch.supportCheck(mySketch.pages[0]);
+console.log(check);
+
+// 2. 渲染后读取每个几何对象的重算坐标与存在状态
+const doc = $('.sketch_canvas').data('document');
+for (const [id, g] of Object.entries(doc.focusPage.gobjList.gobjects)) {
+  console.log(id, g.kind, g.constraint, "exists:", g.state.exists, "loc:", g.geom?.loc);
+}</pre>
+          </div>
+
+          <h2 class="doc-h2">3. 高频实战排障清单</h2>
+          <p class="doc-p">以下条目均来自真实手写 JSON 与复杂课件实测，命中任一条均会导致画布白板、数值隐身或交互失效：</p>
+          <div class="table-box">
+            <table class="clean-table">
+              <thead>
+                <tr><th>症状</th><th>根本原因</th><th>标准写法</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>点或线段不显示字母标签</td>
+                  <td>仅写 <code class="ic">"label": "A"</code> 默认隐藏标签</td>
+                  <td>必须显式添加 <code class="ic">"style": {"label": {"showLabel": true}}</code>。</td>
+                </tr>
+                <tr>
+                  <td>度量值显示为空的 <code class="ic">Expression N =</code></td>
+                  <td>将度量对象的 <code class="ic">kind</code> 误写成 <code class="ic">"Expression"</code> 或缺少命名来源</td>
+                  <td>所有 <code class="ic">Measurement*</code> 必须用 <code class="ic">"kind": "Measure"</code>，并设置 <code class="ic">style.nameOrigin</code> 为 <code class="ic">"namedFromTemplate"</code> 或 <code class="ic">"namedFromLabel"</code>。</td>
+                </tr>
+                <tr>
+                  <td>自由参数变成 <code class="ic">undefined</code></td>
+                  <td>在 <code class="ic">constraint: "Free"</code> 顶层直接写 <code class="ic">value</code> 会被引擎忽略</td>
+                  <td>可编辑参数应写为 <code class="ic">kind:"Expression", constraint:"Calculation", parents:{}, expression:"0.45", label:"a"</code> 并带 <code class="ic">nameOrigin:"namedFromLabel"</code>。</td>
+                </tr>
+                <tr>
+                  <td><code class="ic">GeomLocus</code> 报 <code class="ic">isDiscrete</code> 错误或不画曲线</td>
+                  <td>缺少 <code class="ic">DriveChain</code> 完整中间依赖链或缺少采样区间</td>
+                  <td>在 <code class="ic">parents</code> 中按 <code class="ic">"0".."n"</code> 依次列出整条驱动链（含 <code class="ic">drivenObject</code>），并显式写 <code class="ic">"isDiscrete": false</code> 与 <code class="ic">"driverDomain": {"low": 0, "high": 1}</code>。</td>
+                </tr>
+                <tr>
+                  <td>动画按钮不显示或路径度量报错</td>
+                  <td>按钮 <code class="ic">genus</code> 误写为 <code class="ic">"Button"</code>，或路径度量缺少 <code class="ic">path</code> 父键</td>
+                  <td><code class="ic">ActionButtonAnimate</code> 必须用 <code class="ic">"genus": "Action"</code> + <code class="ic">label</code>；<code class="ic">MeasurementValueOfPointOnPath</code> 需同时传入 <code class="ic">parents: {"point", "path"}</code>。</td>
+                </tr>
+                <tr>
+                  <td>旋转构造的多边形折向内侧</td>
+                  <td>画布原点在左上角且 <code class="ic">+y</code> 向下，屏幕视觉旋向与纸面坐标系相反</td>
+                  <td><code class="ic">Rotate.angle</code> 恒为弧度制，向外作正方形或旋转图形时请结合屏幕坐标核对 <code class="ic">±π/2</code> 符号。</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        `
+      },
+
+      "architecture": {
+        breadcrumb: "核心数据模型 › 四元组模型",
+        title: "文档结构与四元组模型",
+        lead: "每个几何对象实例由唯一标识符以及 kind、genus、constraint、parents 四个核心字段共同定义。",
+        html: `
+          
+          <div class="diagram-card">
+            <div class="diagram-card-head">
+              <span>原理图 · 几何对象依赖拓扑与编写顺序</span>
+              <span style="font-family:var(--font-mono);font-size:12px;">先父后子</span>
+            </div>
+            <div class="diagram-card-body">
+              <svg width="760" height="215" viewBox="0 0 760 215" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <marker id="arr-dag" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M 1 2 L 8 5 L 1 8" fill="none" stroke="var(--text-muted)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                  </marker>
+                </defs>
+                
+                <text x="86" y="20" text-anchor="middle" fill="var(--text-muted)" font-size="12">第 1 层 · 自由对象</text>
+                <text x="306" y="20" text-anchor="middle" fill="var(--text-muted)" font-size="12">第 2 层 · 基础构造</text>
+                <text x="516" y="20" text-anchor="middle" fill="var(--text-muted)" font-size="12">第 3 层 · 派生线</text>
+                <text x="686" y="20" text-anchor="middle" fill="var(--text-muted)" font-size="12">第 4 层 · 交点</text>
+
+                
+                <rect x="20" y="38" width="132" height="44" rx="8" fill="var(--bg-elevated)" stroke="#D63628" stroke-width="1.4"/>
+                <text x="86" y="57" text-anchor="middle" fill="var(--text-primary)" font-size="13" font-weight="500">"1" 自由点 A</text>
+                <text x="86" y="73" text-anchor="middle" fill="var(--text-muted)" font-family="monospace" font-size="11">constraint: Free</text>
+
+                <rect x="20" y="96" width="132" height="44" rx="8" fill="var(--bg-elevated)" stroke="#D63628" stroke-width="1.4"/>
+                <text x="86" y="115" text-anchor="middle" fill="var(--text-primary)" font-size="13" font-weight="500">"2" 自由点 B</text>
+                <text x="86" y="131" text-anchor="middle" fill="var(--text-muted)" font-family="monospace" font-size="11">constraint: Free</text>
+
+                <rect x="20" y="154" width="132" height="44" rx="8" fill="var(--bg-elevated)" stroke="#D63628" stroke-width="1.4"/>
+                <text x="86" y="173" text-anchor="middle" fill="var(--text-primary)" font-size="13" font-weight="500">"3" 自由点 C</text>
+                <text x="86" y="189" text-anchor="middle" fill="var(--text-muted)" font-family="monospace" font-size="11">constraint: Free</text>
+
+                
+                <rect x="228" y="64" width="156" height="52" rx="8" fill="var(--bg-surface)" stroke="#184F95" stroke-width="1.5"/>
+                <text x="306" y="85" text-anchor="middle" fill="var(--text-primary)" font-size="13" font-weight="500">"5" 线段 AB</text>
+                <text x="306" y="103" text-anchor="middle" fill="#184F95" font-family="monospace" font-size="11">parents: {p0:"1", p1:"2"}</text>
+
+                
+                <rect x="434" y="118" width="164" height="52" rx="8" fill="var(--bg-surface)" stroke="#0D7A5F" stroke-width="1.5"/>
+                <text x="516" y="139" text-anchor="middle" fill="var(--text-primary)" font-size="13" font-weight="500">"9" 垂线 CH</text>
+                <text x="516" y="157" text-anchor="middle" fill="#0D7A5F" font-family="monospace" font-size="11">parents: {p0:"3", line:"5"}</text>
+
+                
+                <rect x="626" y="64" width="122" height="62" rx="8" fill="var(--bg-surface)" stroke="var(--text-primary)" stroke-width="1.5"/>
+                <text x="687" y="86" text-anchor="middle" fill="var(--text-primary)" font-size="13" font-weight="500">"10" 垂足 H</text>
+                <text x="687" y="103" text-anchor="middle" fill="var(--text-muted)" font-family="monospace" font-size="10.5">line0: "5"</text>
+                <text x="687" y="117" text-anchor="middle" fill="var(--text-muted)" font-family="monospace" font-size="10.5">line1: "9"</text>
+
+                
+                <path d="M 152 60 C 190 60, 190 80, 224 80" stroke="var(--text-muted)" stroke-width="1.4" marker-end="url(#arr-dag)"/>
+                <path d="M 152 118 C 190 118, 190 100, 224 100" stroke="var(--text-muted)" stroke-width="1.4" marker-end="url(#arr-dag)"/>
+                <path d="M 152 176 C 280 176, 350 156, 430 156" stroke="var(--text-muted)" stroke-width="1.4" marker-end="url(#arr-dag)"/>
+                <path d="M 384 102 C 410 102, 410 134, 430 134" stroke="var(--text-muted)" stroke-width="1.4" marker-end="url(#arr-dag)"/>
+                <path d="M 384 82 L 622 82" stroke="var(--text-muted)" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#arr-dag)"/>
+                <path d="M 598 144 C 612 144, 612 108, 622 108" stroke="var(--text-muted)" stroke-width="1.4" marker-end="url(#arr-dag)"/>
+              </svg>
+            </div>
+          </div>
+          <h2 class="doc-h2">几何对象核心字段说明</h2>
+          <div class="table-box">
+            <table class="clean-table">
+              <thead>
+                <tr>
+                  <th>字段名</th>
+                  <th>类型</th>
+                  <th>是否必填</th>
+                  <th>作用与校验规则</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code class="ic">kind</code></td>
+                  <td>字符串</td>
+                  <td>是</td>
+                  <td>决定对象渲染图层与基础方法，对应 <code class="ic">GSP.gObjects[kind]</code>。</td>
+                </tr>
+                <tr>
+                  <td><code class="ic">genus</code></td>
+                  <td>字符串</td>
+                  <td>是</td>
+                  <td>语义属类，决定默认配色与标签样式，例如 <code class="ic">Straight</code> 下的 <code class="ic">Segment</code>、<code class="ic">Ray</code>、<code class="ic">Line</code>。</td>
+                </tr>
+                <tr>
+                  <td><code class="ic">constraint</code></td>
+                  <td>字符串</td>
+                  <td>是</td>
+                  <td>几何约束求解算法，对应 <code class="ic">GSP.gConstraints[constraint]</code>。</td>
+                </tr>
+                <tr>
+                  <td><code class="ic">parents</code></td>
+                  <td>字典对象</td>
+                  <td>视约束而定</td>
+                  <td>父对象角色字典，键名严格固定，例如垂线必须为 <code class="ic">{"p0", "line"}</code>，值为父对象编号字符串。</td>
+                </tr>
+                <tr>
+                  <td><code class="ic">geom</code></td>
+                  <td>字典对象</td>
+                  <td>仅自由对象必填</td>
+                  <td>自由点、度量、文本、按钮需指定 <code class="ic">{"loc": {"x": 200, "y": 300}}</code>；依赖型对象由引擎自动重算。</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        `
+      },
+
+      "coordinates": {
+        breadcrumb: "核心数据模型 › 像素坐标系",
+        title: "像素坐标系与单位换算",
+        lead: "画布采用左上角为原点的屏幕像素坐标系，长度度量与旋转角度遵循固定的物理换算系数。",
+        html: `
+          
+          <div class="diagram-card">
+            <div class="diagram-card-head">
+              <span>原理图 · 屏幕像素坐标系、物理标尺与旋转弧度方向</span>
+              <span style="font-family:var(--font-mono);font-size:12px;">左上角为原点</span>
+            </div>
+            <div class="diagram-card-body">
+              <svg width="720" height="235" viewBox="0 0 720 235" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <marker id="arr-axis" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                    <path d="M 1 2 L 8 5 L 1 8" fill="none" stroke="#184F95" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                  </marker>
+                </defs>
+                
+                <rect x="44" y="34" width="340" height="176" rx="8" fill="var(--bg-elevated)" stroke="var(--border-hairline)" stroke-width="1.3"/>
+                
+                <line x1="44" y1="34" x2="404" y2="34" stroke="#184F95" stroke-width="1.8" marker-end="url(#arr-axis)"/>
+                <text x="412" y="38" fill="#184F95" font-family="monospace" font-size="13" font-weight="600">+x</text>
+                
+                <line x1="44" y1="34" x2="44" y2="224" stroke="#184F95" stroke-width="1.8" marker-end="url(#arr-axis)"/>
+                <text x="36" y="234" fill="#184F95" font-family="monospace" font-size="13" font-weight="600">+y (向下增大)</text>
+                
+                <circle cx="44" cy="34" r="4.5" fill="#D63628"/>
+                <text x="12" y="22" fill="#D63628" font-family="monospace" font-size="12" font-weight="600">(0, 0)</text>
+
+                
+                <line x1="224" y1="34" x2="224" y2="132" stroke="var(--text-muted)" stroke-width="1.2" stroke-dasharray="4 3"/>
+                <line x1="44" y1="132" x2="224" y2="132" stroke="var(--text-muted)" stroke-width="1.2" stroke-dasharray="4 3"/>
+                <circle cx="224" cy="132" r="4.5" fill="#D63628"/>
+                <text x="234" y="136" fill="var(--text-primary)" font-family="monospace" font-size="12.5" font-weight="500">loc: { x: 220, y: 110 }</text>
+                <text x="126" y="26" fill="var(--text-muted)" font-family="monospace" font-size="11.5">x = 220 px</text>
+                <text x="52" y="88" fill="var(--text-muted)" font-family="monospace" font-size="11.5">y = 110 px</text>
+
+                
+                <line x1="68" y1="184" x2="153" y2="184" stroke="#0D7A5F" stroke-width="2"/>
+                <line x1="68" y1="178" x2="68" y2="190" stroke="#0D7A5F" stroke-width="1.6"/>
+                <line x1="153" y1="178" x2="153" y2="190" stroke="#0D7A5F" stroke-width="1.6"/>
+                <text x="163" y="188" fill="#0D7A5F" font-family="monospace" font-size="12">3 cm ≈ 85.04 px (1 cm ≈ 28.35 px)</text>
+
+                
+                <rect x="460" y="34" width="234" height="176" rx="8" fill="var(--bg-elevated)" stroke="var(--border-hairline)" stroke-width="1.3"/>
+                <text x="577" y="58" text-anchor="middle" fill="var(--text-primary)" font-size="13" font-weight="500">Rotate 弧度旋转方向</text>
+                <circle cx="577" cy="134" r="44" stroke="var(--border-hairline)" stroke-width="1.3" stroke-dasharray="3 3"/>
+                <line x1="577" y1="134" x2="621" y2="134" stroke="var(--text-muted)" stroke-width="1.4"/>
+                <line x1="577" y1="134" x2="577" y2="90" stroke="#184F95" stroke-width="1.6"/>
+                <path d="M 605 134 A 28 28 0 0 0 577 106" stroke="#D63628" stroke-width="1.8" fill="none"/>
+                <circle cx="577" cy="134" r="3.5" fill="var(--text-primary)"/>
+                <text x="626" y="138" fill="var(--text-muted)" font-family="monospace" font-size="11.5">0</text>
+                <text x="556" y="83" fill="#184F95" font-family="monospace" font-size="11.5">+π/2 (90°)</text>
+                <text x="577" y="196" text-anchor="middle" fill="var(--text-muted)" font-size="11.5">正弧度为逆时针方向</text>
+              </svg>
+            </div>
+          </div>
+          <h2 class="doc-h2">长度与角度换算标准</h2>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>换算关系</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="复制代码"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">1 inch = 72 pixels
+1 cm   = 72 / 2.54 ≈ 28.346456692913385 pixels
+
+// 旋转与平移约束中的 angle 属性必须使用弧度：
+180° = 3.141592653589793
+90°  = 1.5707963267948966</pre>
+          </div>
+        `
+      },
+
+      "styles": {
+        breadcrumb: "核心数据模型 › 视觉样式",
+        title: "视觉样式与渲染图层",
+        lead: "通过每个对象的 style 字典控制颜色、线宽、虚线样式、小数位数、标签偏移及隐藏状态。",
+        html: `
+          <div class="hairline-callout">
+            <svg class="icon" style="margin-top:3px;"><use href="#ic-info"/></svg>
+            <div><strong>渲染流畅度提示</strong>：为无限长直线（<code class="ic">Line</code>、<code class="ic">Perpendicular</code>、<code class="ic">Parallel</code>）设置样式时，优先使用浅色细实线（<code class="ic">"line-style": "solid"</code>）。在部分浏览器中，对无限长直线开启高密度 <code class="ic">"dotted"</code> 点线会显著增加拖拽时的重绘开销。</div>
+          </div>
+
+          <h2 class="doc-h2">常用 style 属性写法</h2>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>JSON · style 字段示例</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="复制代码"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">"style": {
+  "color": "navy",                   // 颜色名称或 "rgb(200,220,255)"
+  "hidden": false,                   // true 表示隐藏辅助构造对象（仍参与几何重算）
+  "width": 2,                        // 线条宽度（像素）
+  "line-style": "solid",             // "solid" | "dashed" | "dotted"
+  "radius": 4,                       // 点半径（像素）
+  "font-size": 16,                   // 度量或文本字号（像素）
+  "precision": 2,                    // 度量或计算结果显示的小数位数
+  "nameOrigin": "namedFromTemplate", // "namedFromTemplate" | "namedFromLabel" | "noVisibleName"
+  "inner-radius": 28,                // 角标圆弧半径（像素）
+  "tick-mark-style": "Crossbar",     // 刻度符样式："Crossbar" | "OpenArrow" | "SolidArrow"
+  "strokes": 2,                      // 角标弧线层数或刻度杠数 (1~4)
+  "label": {
+    "showLabel": true,
+    "labelOffsetX": -15,
+    "labelOffsetY": 15
+  }
+}</pre>
+          </div>
+        `
+      },
+
+      "guide-euclidean": {
+        breadcrumb: "几何构造指南 › 点、直线系与交点",
+        title: "点、直线系与交点",
+        lead: "涵盖自由点、线段、射线、直线、垂线、平行线、角平分线、中点、路径动点以及四类交点约束的标准写法。",
+        demoPreset: "euclideanPure",
+        demoCaption: "拖动红色顶点 A、B、C，观察垂线、平行线、中点 M 与角平分线实时联动",
+        html: `
+          <div class="hairline-callout">
+            <svg class="icon" style="margin-top:3px;"><use href="#ic-info"/></svg>
+            <div><strong>如何使用本节片段</strong>：将下方键值对放入最小文档骨架的 <code class="ic">pages[0].objects</code> 大括号内即可运行（确保父对象编号已先定义）。另外注意：<code class="ic">AngleBisector</code> 的 <code class="ic">parents: {"A", "B", "C"}</code> 中，<strong>中间的 <code class="ic">"B"</code> 才是角的顶点</strong>。</div>
+          </div>
+
+          <h2 class="doc-h2">1. 线段、垂线、平行线与角平分线</h2>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>JSON · 直线系构造</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="复制代码"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">"5": {
+  "kind": "Straight", "genus": "Segment", "constraint": "Segment",
+  "parents": { "p0": "1", "p1": "2" }, "style": { "color": "navy", "width": 2 }
+},
+"9": {
+  "kind": "Straight", "genus": "Perpendicular", "constraint": "Perpendicular",
+  "parents": { "p0": "3", "line": "5" }, "style": { "color": "green", "line-style": "dashed" }
+},
+"11": {
+  "kind": "Straight", "genus": "Parallel", "constraint": "Parallel",
+  "parents": { "p0": "3", "line": "5" }, "style": { "color": "teal", "line-style": "dotted" }
+},
+"12": {
+  "kind": "Straight", "genus": "Bisector", "constraint": "AngleBisector",
+  "parents": { "A": "2", "B": "1", "C": "3" }, "style": { "color": "orange", "width": 1.5 }
+}</pre>
+          </div>
+
+          <h2 class="doc-h2">2. 中点、路径动点与四类交点</h2>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>JSON · 派生点与交点构造</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="复制代码"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">// 线段中点
+"8": { "kind": "Point", "genus": "Midpoint", "constraint": "Midpoint", "parents": { "path": "5" }, "label": "M" },
+// 路径动点 (value 为 0~1 比例)
+"9": { "kind": "Point", "genus": "PointOnPath", "constraint": "PointOnPath", "parents": { "path": "5" }, "value": 0.35 },
+// 两直线交点 (parents 键必须为 line0, line1)
+"10": { "kind": "Point", "genus": "Intersection", "constraint": "Intersection", "parents": { "line0": "5", "line1": "9" }, "label": "H" },
+// 圆与直线或两圆的第 1、2 交点 (parents 键必须为 circle, obj)
+"11": { "kind": "Point", "genus": "Intersection", "constraint": "Intersection1", "parents": { "circle": "13", "obj": "5" } },
+"12": { "kind": "Point", "genus": "Intersection", "constraint": "Intersection2", "parents": { "circle": "13", "obj": "5" } },
+// 函数图象或动点轨迹与直线、圆、弧或另一函数的交点 (多个同父节点自动按序分配第 1、2 个交点)
+"13": { "kind": "Point", "genus": "Intersection", "constraint": "InterApproxPathStitchedPath_C", "parents": { "0": "9", "1": "12" }, "label": "P[1]" }</pre>
+          </div>
+        `
+      },
+
+      "guide-shapes": {
+        breadcrumb: "几何构造指南 › 圆、圆弧、多边形与角标",
+        title: "圆、圆弧、多边形与角标",
+        lead: "构造圆规圆、多边形内部着色区域、过三点圆弧以及角度标记与等长刻度符。",
+        demoPreset: "equilateral",
+        demoCaption: "双圆交点构造等边三角形 △ABC，拖动红点 A、B 实时缩放旋转",
+        html: `
+          <h2 class="doc-h2">圆、多边形与角标代码模板</h2>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>JSON · 圆与多边形构造</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="复制代码"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">"3": {
+  "kind": "Circle", "genus": "Circle", "constraint": "CircleFromTwoPoints",
+  "parents": { "p0": "1", "p1": "2" }, "style": { "color": "#184F95", "width": 1.5 }
+},
+"4": {
+  "kind": "Circle", "genus": "Circle", "constraint": "CircleFromTwoPoints",
+  "parents": { "p0": "2", "p1": "1" }, "style": { "color": "#0D7A5F", "line-style": "dashed" }
+},
+"5": {
+  "kind": "Point", "genus": "Intersection", "constraint": "Intersection1",
+  "parents": { "circle": "3", "obj": "4" }, "label": "C"
+},
+"6": {
+  "kind": "Polygon", "genus": "Triangle", "constraint": "PolygonFromPoints",
+  "parents": { "0": "1", "1": "2", "2": "5" }, "style": { "color": "rgb(225,236,252)", "layerOrder": 0 }
+}</pre>
+          </div>
+
+          <h2 class="doc-h2">2. 圆弧、扇形填充与角标</h2>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>JSON · ArcOnCircle / Arc3Points / ArcSector / AngleMarker</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="复制代码"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">// 1. 圆上弧（沿圆 3 逆时针从点 p0 到点 p1）
+"10": {
+  "kind": "Arc", "genus": "Arc", "constraint": "ArcOnCircle",
+  "parents": { "circle": "3", "p0": "7", "p1": "8" }, "style": { "color": "#D63628", "width": 2.5 }
+},
+// 2. 过三点圆弧（经 p0 → p1 → p2）
+"11": {
+  "kind": "Arc", "genus": "Arc", "constraint": "Arc3Points",
+  "parents": { "p0": "1", "p1": "5", "p2": "2" }, "style": { "color": "#184F95", "width": 2 }
+},
+// 3. 扇形内部着色（依赖上方圆弧 10）
+"12": {
+  "kind": "ArcInterior", "genus": "ArcSector", "constraint": "ArcSector",
+  "parents": { "arc": "10" }, "style": { "color": "rgb(254,232,200)", "layerOrder": 0 }
+},
+// 4. 角度圆弧标记（顶点在中间 p1）
+"13": {
+  "kind": "AngleMarker", "genus": "AngleMarker", "constraint": "AngleMarker_Simple",
+  "parents": { "p0": "5", "p1": "1", "p2": "2" }, "style": { "color": "#184F95", "inner-radius": 26, "strokes": 1 }
+}</pre>
+          </div>
+        `
+      },
+
+      "guide-measures": {
+        breadcrumb: "几何构造指南 › 几何度量与表达式计算",
+        title: "几何度量与表达式计算",
+        lead: "实时测量长度、距离、角度、面积、比值、坐标与斜率，并在代数计算式中通过 @0、@1 引用父度量值。",
+        demoPreset: "euclidean",
+        demoCaption: "左上角实时显示角度与多边形面积度量结果",
+        html: `
+          <h2 class="doc-h2">常用度量与表达式计算模板</h2>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>JSON · 度量与计算式</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="复制代码"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">"16": {
+  "kind": "Measure", "genus": "AngleMeasure", "constraint": "MeasurementAngle",
+  "parents": { "p0": "2", "p1": "1", "p2": "3" }, "geom": { "loc": { "x": 30, "y": 30 } },
+  "style": { "font-size": 16, "precision": 1, "nameOrigin": "namedFromTemplate" }
+},
+"17": {
+  "kind": "Measure", "genus": "DistanceMeasure", "constraint": "MeasurementLength",
+  "parents": { "path": "5" }, "geom": { "loc": { "x": 30, "y": 60 } },
+  "style": { "font-size": 16, "precision": 2, "nameOrigin": "namedFromTemplate" }
+},
+"19": {
+  "kind": "Expression", "genus": "ScalarMeasure", "constraint": "Calculation",
+  "parents": { "0": "17" }, "geom": { "loc": { "x": 30, "y": 90 } },
+  "expressionType": "UniMeasure_ExprType", "expression": "2*@0",
+  "style": { "font-size": 16, "precision": 2, "nameOrigin": "namedFromTemplate" }
+}</pre>
+          </div>
+
+          <h2 class="doc-h2">2. 可编辑参数与动态热文本</h2>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>JSON · Parameter（自由数值参数）与 CompositeText（内嵌实时度量值的说明文字）</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="复制代码"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">// 可编辑标量参数（用户双击可弹出数字键盘修改，也可被动画按钮驱动）
+"20": {
+  "kind": "Expression", "genus": "ScalarMeasure", "constraint": "Free",
+  "geom": { "loc": { "x": 30, "y": 125 } }, "value": 3, "label": "n",
+  "style": { "font-size": 16, "precision": 0, "nameOrigin": "namedFromLabel" }
+},
+// 动态热文本：在文字中用占位符嵌入父对象 17 的实时数值
+"21": {
+  "kind": "Text", "genus": "Caption", "constraint": "CompositeText",
+  "parents": { "0": "17" }, "geom": { "loc": { "x": 30, "y": 160 } },
+  "text": "当前线段长度为：", "style": { "font-size": 15, "color": "#0B0B0B" }
+}</pre>
+          </div>
+
+          <h2 class="doc-h2">3. 表达式常用内置函数</h2>
+          <div class="table-box">
+            <table class="clean-table">
+              <thead><tr><th>分类</th><th>可用写法示例</th></tr></thead>
+              <tbody>
+                <tr><td>三角与反三角</td><td><code class="ic">sin(@0)</code> · <code class="ic">cos(@0)</code> · <code class="ic">tan(@0)</code> · <code class="ic">asin(@0)</code> · <code class="ic">acos(@0)</code> · <code class="ic">atan(@0)</code></td></tr>
+                <tr><td>幂、根号与对数</td><td><code class="ic">@0^2</code> · <code class="ic">sqrt(@0)</code> · <code class="ic">abs(@0)</code> · <code class="ic">ln(@0)</code> · <code class="ic">log(@0)</code></td></tr>
+                <tr><td>取整与常量</td><td><code class="ic">trunc(@0)</code> · <code class="ic">round(@0)</code> · <code class="ic">sgn(@0)</code> · <code class="ic">pi</code> · <code class="ic">e</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+        `
+      },
+
+      "guide-functions": {
+        breadcrumb: "几何构造指南 › 坐标系、函数图象与交点",
+        title: "坐标系、函数图象与交点",
+        lead: "搭建链式平面直角坐标系、绘制带参数的函数曲线，并使用 InterApproxPathStitchedPath_C 动态求解函数曲线与直线、圆或轨迹的交点。",
+        demoPreset: "parabola",
+        demoCaption: "拖动红点 A、B 改变直线斜率，或拖动原点 O，观察抛物线与直线的两个交点 P₁、P₂ 实时追踪与消失",
+        html: `
+          <div class="hairline-callout">
+            <svg class="icon" style="margin-top:3px;"><use href="#ic-info"/></svg>
+            <div><strong>多交点自动分配机制</strong>：当函数曲线与直线或圆存在多个交点时，只需声明多个具有相同 <code class="ic">constraint: "InterApproxPathStitchedPath_C"</code> 与相同两个 <code class="ic">parents</code> 的点对象，引擎会按对象顺序自动分配第 1、第 2 个交点。自 2026-11-19 版本起，画布中直接点击函数或轨迹交点生成交点已改为默认开启；若需在特定页面关闭该交互，可设置 <code class="ic">window.GSPConfig.Intersections = { options: { tapPlotIntersections: false } }</code>。</div>
+          </div>
+
+          <h2 class="doc-h2">坐标系、二次函数与双交点代码模板</h2>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>JSON · 坐标系链、函数曲线与函数交点</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="复制代码"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">"1": { "kind": "Point", "genus": "OriginPoint", "constraint": "Free", "geom": { "loc": { "x": 310, "y": 195 } }, "label": "O" },
+"2": { "kind": "Point", "genus": "UnitPoint", "constraint": "HorizontalUnitPoint", "parents": { "origin": "1" }, "value": 44.0, "style": { "hidden": true } },
+"3": { "kind": "Axis", "genus": "Axis", "constraint": "AxisInternalDist", "parents": { "origin": "1", "unitPoint": "2" }, "orientation": "horizontal", "label": "x", "style": { "selectable": false } },
+"4": { "kind": "Point", "genus": "UnitPoint", "constraint": "UnitPointInternalSquare", "parents": { "unitPoint": "2" }, "style": { "hidden": true } },
+"5": { "kind": "Axis", "genus": "Axis", "constraint": "AxisInternalDist", "parents": { "origin": "1", "unitPoint": "4" }, "orientation": "vertical", "label": "y", "style": { "selectable": false } },
+"6": { "kind": "CoordSys", "genus": "CoordSys", "constraint": "CoordSys", "parents": { "axisX": "3", "axisY": "5" }, "shape": "square", "style": { "grid": "gridlines", "selectable": false } },
+"7": { "kind": "Expression", "genus": "ScalarMeasure", "constraint": "Calculation", "parents": {}, "geom": { "loc": { "x": 18, "y": 20 } }, "expressionType": "UniMeasure_ExprType", "expression": "0.45", "label": "a", "style": { "nameOrigin": "namedFromLabel" } },
+"8": { "kind": "Expression", "genus": "Function", "constraint": "Function", "parents": { "0": "7" }, "geom": { "loc": { "x": 18, "y": 46 } }, "expressionType": "YofX_FunctionExprType", "functionExpr": { "notation": "function", "name": "f", "dependentVar": "y", "independentVar": "x" }, "expression": "@0*x^2-2", "label": "f" },
+"9": { "kind": "Sampler", "genus": "FunctionPlot", "constraint": "FunctionPlot", "parents": { "function": "8", "coordSys": "6" }, "numSamples": 180, "isDiscrete": false, "showEndpoints": true, "driverDomain": { "low": -6, "high": 6 }, "style": { "color": "#184F95", "width": 2.5 } },
+// 抛物线与直线 12 的两个动态交点（括号内下标语法如 P[1] 自动渲染为数学下标）
+"13": { "kind": "Point", "genus": "Intersection", "constraint": "InterApproxPathStitchedPath_C", "parents": { "0": "9", "1": "12" }, "label": "P[1]" },
+"14": { "kind": "Point", "genus": "Intersection", "constraint": "InterApproxPathStitchedPath_C", "parents": { "0": "9", "1": "12" }, "label": "P[2]" }</pre>
+          </div>
+
+          <h2 class="doc-h2">2. 动态计算坐标绘点、动点轨迹与参数曲线</h2>
+          <p class="doc-p">制作正弦函数线、椭圆/双曲线定义轨迹，或用投影公式搭建旋转正方体等伪三维图形时，核心依赖以下三种构造：</p>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>JSON · PlotMarkedXMarkedY / GeomLocus / ParametricCartesianCurvePlot</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="复制代码"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">// 1. 用两个度量或计算式 (coordX, coordY) 在坐标系 6 中动态绘点（正弦线、伪 3D 顶点核心）
+"20": {
+  "kind": "Point", "genus": "PlottedPoint", "constraint": "PlotMarkedXMarkedY",
+  "parents": { "coordSys": "6", "coordX": "15", "coordY": "16" }, "label": "Q"
+},
+// 2. 动点几何轨迹（必须在 parents 中按 "0".."n" 依次列出驱动链上全部中间对象及 drivenObject；支持 solid/dashed/dotted 线型）
+"21": {
+  "kind": "Sampler", "genus": "PointLocus", "constraint": "GeomLocus",
+  "parents": { "driverObject": "5", "drivenObject": "10", "domainObject": "3", "0": "6", "1": "7", "2": "8", "3": "9", "4": "10" },
+  "numSamples": 180, "isDiscrete": false, "driverDomain": { "low": 0, "high": 1 }, "style": { "color": "#D63628", "line-style": "solid", "width": 2.5 }
+},
+// 3. 参数方程曲线（xFunction 与 function 分别为 x(t) 与 y(t) 表达式）
+"22": {
+  "kind": "Sampler", "genus": "ParametricPlot", "constraint": "ParametricCartesianCurvePlot",
+  "parents": { "coordSys": "6", "xFunction": "23", "function": "24" },
+  "numSamples": 180, "driverDomain": { "low": 0, "high": 6.283185 }, "style": { "color": "#0D7A5F", "width": 2 }
+}</pre>
+          </div>
+        `
+      },
+
+      "guide-transforms": {
+        breadcrumb: "几何构造指南 › 几何变换与分形迭代",
+        title: "几何变换与分形迭代",
+        lead: "使用轴对称、滑移反射、旋转、位似缩放与平移构造变换像，并通过迭代映射生成多重分形。",
+        demoPreset: "iteration",
+        demoCaption: "双分支分形树（map0 左枝 + map1 右枝，深度 5），拖动树干红点 A、B 实时缩放旋转整棵树",
+        html: `
+          <h2 class="doc-h2">1. 动态反射、旋转、缩放与向量平移</h2>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>JSON · Reflect / RotateMeasureAngle / DilateMeasureFactor / TranslateVector</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="复制代码"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">// 1. 轴对称反射
+"14": { "kind": "Point", "genus": "Point", "constraint": "Reflect", "parents": { "source": "3", "mirror": "5" }, "label": "C'" },
+// 2. 固定弧度旋转（如 π = 180°）
+"15": { "kind": "Point", "genus": "Point", "constraint": "Rotate", "parents": { "source": "10", "center": "1" }, "angle": 3.141592653589793 },
+// 3. 按动态角度度量或参数旋转（立方体展开、旋转正方体核心）
+"16": { "kind": "Point", "genus": "Point", "constraint": "RotateMeasureAngle", "parents": { "source": "10", "center": "1", "angle": "20" } },
+// 4. 按动态比值或参数位似缩放（毕达哥拉斯树、分形树核心）
+"17": { "kind": "Point", "genus": "Point", "constraint": "DilateMeasureFactor", "parents": { "source": "10", "center": "1", "measure": "21" } },
+// 5. 按标记向量 p0 → p1 平移（勾股定理割补拼图核心）
+"18": { "kind": "Polygon", "genus": "Triangle", "constraint": "TranslateVector", "parents": { "source": "4", "p0": "1", "p1": "2" } }</pre>
+          </div>
+
+          <h2 class="doc-h2">2. 双分支分形迭代与参数控深度</h2>
+          <p class="doc-p">制作毕达哥拉斯树或分形树时，在 <code class="ic">IterateMap</code> 的 <code class="ic">parents</code> 中同时提供左枝（<code class="ic">map0image0, map0image1</code>）和右枝（<code class="ic">map1image0, map1image1</code>）两套映射目标；若需通过滑动条参数控制迭代层数，将约束名换为 <code class="ic">IterateMapByParametricDepth</code> 并传入 <code class="ic">"depth"</code> 父对象即可：</p>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>JSON · 双分支分形树（map0 + map1）</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="复制代码"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">"9": {
+  "kind": "Map", "genus": "Map", "constraint": "IterateMap",
+  "parents": {
+    "preimage0": "1", "preimage1": "2",
+    "map0image0": "2", "map0image1": "5",
+    "map1image0": "2", "map1image1": "6",
+    "0": "3"
+  },
+  "currentDepth": 5
+},
+"10": {
+  "kind": "IterateImage", "genus": "IterateImage", "constraint": "IterateImage",
+  "parents": { "source": "3", "map": "9" }, "style": { "color": "#0D7A5F", "width": 1.5 }
+}</pre>
+          </div>
+        `
+      },
+
+      "guide-buttons": {
+        breadcrumb: "几何构造指南 › 交互动作按钮与动画",
+        title: "交互动作按钮与动画",
+        lead: "在画布中添加显示或隐藏对象的切换按钮、路径连续动画按钮，以及自动触发与分支演示按钮。",
+        html: `
+          <h2 class="doc-h2">1. 显示隐藏与路径动画按钮</h2>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>JSON · 显示隐藏与动画按钮</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="复制代码"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">"30": {
+  "kind": "Button", "genus": "Action", "constraint": "ActionButtonToggleHideShow",
+  "parents": { "0": "9", "1": "10" }, "geom": { "loc": { "x": 28, "y": 390 } },
+  "label": "Show Construction", "messages": ["Hide Construction", "Show Construction"], "fade": true
+},
+"31": {
+  "kind": "Button", "genus": "Action", "constraint": "ActionButtonAnimate",
+  "parents": { "0": "9" }, "geom": { "loc": { "x": 180, "y": 390 } },
+  "label": "Animate Point P", "messages": ["Animate Point P"],
+  "animationStates": [{ "rate": 3, "timeInterval": 0, "repeat": true, "motionType": "both" }]
+}</pre>
+          </div>
+
+          <h2 class="doc-h2">2. 移动按钮与同时演示按钮</h2>
+          <p class="doc-p">制作勾股定理割补拼图、立方体一键展开与还原时，使用 <code class="ic">ActionButtonMove</code> 让动点平滑移动到指定目标点，使用 <code class="ic">ActionButtonPresentSimultaneously</code> 一键同步触发多个动作按钮：</p>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>JSON · ActionButtonMove & ActionButtonPresentSimultaneously</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="复制代码"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">// 移动按钮：parents 中成对列出 [被移动点, 目标位置点]
+"32": {
+  "kind": "Button", "genus": "Action", "constraint": "ActionButtonMove",
+  "parents": { "0": "1", "1": "2" }, "geom": { "loc": { "x": 28, "y": 430 } },
+  "label": "展开", "speed": "medium"
+},
+// 同时演示按钮：一键并发激活父列表中的所有动作按钮
+"33": {
+  "kind": "Button", "genus": "Action", "constraint": "ActionButtonPresentSimultaneously",
+  "parents": { "0": "31", "1": "32" }, "geom": { "loc": { "x": 140, "y": 430 } },
+  "label": "一键演示"
+}</pre>
+          </div>
+
+          <h2 class="doc-h2">3. 自动触发与条件分支按钮</h2>
+          <div class="table-box">
+            <table class="clean-table">
+              <thead>
+                <tr><th>按钮机制</th><th>标签或属性写法</th><th>运行时行为</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>翻页自动触发</td>
+                  <td><code class="ic">"label": "autostart: Reset"</code></td>
+                  <td>每次载入或切换到当前草图页面时自动按下该按钮。</td>
+                </tr>
+                <tr>
+                  <td>条件分支演示</td>
+                  <td>隐藏/显示按钮命名为 <code class="ic">"_Case:步骤"</code></td>
+                  <td>首个父对象为取值 <code class="ic">1..n</code> 的参数或计算式，其余父对象为子按钮；按下时按索引仅激活对应的第 <code class="ic">k</code> 个子按钮。</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        `
+      },
+
+      "web-widgets": {
+        breadcrumb: "网页集成与进阶 › 网页嵌入与小部件配置",
+        title: "网页嵌入与小部件配置",
+        lead: "在宿主网页中同时挂载多个草图、引入五大悬浮编辑小部件，并通过脚本按草图与页码精细控制小部件、工具和导入导出菜单。",
+        html: `
+          
+          <div class="diagram-card">
+            <div class="diagram-card-head">
+              <span>原理图 · .sketch_container 宿主网页区块嵌套结构</span>
+              <span style="font-family:var(--font-mono);font-size:12px;">HTML 容器布局</span>
+            </div>
+            <div class="diagram-card-body">
+              <svg width="680" height="225" viewBox="0 0 680 225" fill="none" xmlns="http://www.w3.org/2000/svg">
+                
+                <rect x="20" y="14" width="640" height="196" rx="10" fill="var(--bg-elevated)" stroke="var(--text-muted)" stroke-width="1.4" stroke-dasharray="5 3"/>
+                <text x="36" y="36" fill="var(--text-primary)" font-family="monospace" font-size="12.5" font-weight="600">&lt;div class="sketch_container"&gt;</text>
+
+                
+                <rect x="44" y="48" width="592" height="36" rx="7" fill="var(--bg-surface)" stroke="#0D7A5F" stroke-width="1.3"/>
+                <text x="60" y="70" fill="#0D7A5F" font-family="monospace" font-size="12">.page_toggle.p_1</text>
+                <text x="205" y="70" fill="var(--text-secondary)" font-size="12.5">随草图页码自动显隐的网页正文说明与翻页链接（可选）</text>
+
+                
+                <rect x="44" y="94" width="592" height="58" rx="7" fill="var(--bg-surface)" stroke="#184F95" stroke-width="1.6"/>
+                <text x="60" y="118" fill="#184F95" font-family="monospace" font-size="12.5" font-weight="600">.sketch_canvas [data-var="mysketch"]</text>
+                <text x="60" y="138" fill="var(--text-secondary)" font-size="12.5">Web Sketchpad 交互画布主体（引擎自动挂载三层 Canvas 与工具栏）</text>
+
+                
+                <rect x="44" y="162" width="592" height="34" rx="7" fill="var(--bg-surface)" stroke="var(--text-muted)" stroke-width="1.3"/>
+                <text x="60" y="183" fill="var(--text-primary)" font-family="monospace" font-size="12">.wsp-button-bar</text>
+                <rect x="200" y="169" width="110" height="20" rx="4" fill="var(--bg-elevated)" stroke="var(--border-hairline)"/>
+                <text x="255" y="183" text-anchor="middle" fill="var(--text-muted)" font-size="11">.util-menu-btn</text>
+                <text x="326" y="183" fill="var(--text-secondary)" font-size="12">撤销 / 重做 · 重置 · 小部件开关 · 多页翻页器</text>
+              </svg>
+            </div>
+          </div>
+          <h2 class="doc-h2">1. 在 HTML 中挂载带小部件的完整容器</h2>
+          <p class="doc-p">若希望用户在网页上直接修改颜色线型、开启轨迹追踪、编辑标签文字、切换隐藏或删除对象，需在页面头部额外引入小部件脚本与样式表，并在正文中使用 <code class="ic">.sketch_container</code> 与 <code class="ic">.wsp-button-bar</code> 结构：</p>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>HTML · 挂载小部件与底部按钮栏</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="复制代码"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">&lt;!-- 头部引入顺序 --&gt;
+&lt;script src="./js/jquery-2.1.0.min.js"&gt;&lt;/script&gt;
+&lt;script src="./js/wsp.js"&gt;&lt;/script&gt;
+&lt;script src="./widgets/jquery.tiny-draggable.js"&gt;&lt;/script&gt;
+&lt;link rel="stylesheet" href="./widgets/widgets.css" /&gt;
+&lt;script src="./widgets/widgets.js"&gt;&lt;/script&gt;
+&lt;script src="./js/wsp-runner.js"&gt;&lt;/script&gt;
+
+&lt;!-- 正文画布容器 --&gt;
+&lt;div class="sketch_container"&gt;
+  &lt;div class="sketch_canvas" data-var="sketches/triangle"&gt;&lt;/div&gt;
+  &lt;div class="wsp-button-bar"&gt;
+    &lt;div class="util-menu-btn"&gt;&lt;/div&gt; &lt;!-- 需要左下角下载/上传菜单时保留 --&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</pre>
+          </div>
+
+          <h2 class="doc-h2">2. 通过脚本统一配置小部件、工具与菜单权限</h2>
+          <p class="doc-p">当同一个 HTML 页面嵌入多个草图时，无需重新导出 JSON，直接在 <code class="ic">&lt;head&gt;</code> 中调用 <code class="ic">WSP.PREF.setWebPagePrefs()</code> 即可按草图名称与页码精确开关各项功能：</p>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>JavaScript · WSP.PREF.setWebPagePrefs</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="复制代码"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">&lt;script&gt;
+  WSP.PREF.setWebPagePrefs([
+    // 先全局关闭所有草图的小部件与实用菜单
+    { pages: "none" },
+    // 仅为 sketch2 的第 1、3、5 页开启样式小部件
+    { category: "widget", name: "style", sketches: "sketch2", pages: "1, 3, 5" },
+    // 为 sketch3 与 sketch4 的全部页面开启可见性小部件
+    { category: "widget", name: "visibility", sketches: "sketch3, sketch4", pages: "all" },
+    // 仅在 sketch2 的第 2、3 页显示线段与圆工具
+    { category: "tool", name: "Segment, Circle", sketches: "sketch2", pages: "2, 3" },
+    // 仅允许 sketch4 使用下载菜单（不开放上传）
+    { category: "util", name: "download", sketches: "sketch4" }
+  ]);
+&lt;/script&gt;</pre>
+          </div>
+
+          <h2 class="doc-h2">3. 常用作者偏好键对照</h2>
+          <div class="table-box">
+            <table class="clean-table">
+              <thead>
+                <tr><th>偏好键名</th><th>可选值</th><th>作用说明</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code class="ic">enableScrolling</code></td><td><code class="ic">none</code> / <code class="ic">all</code> / 页码</td><td>关闭画布内拖拽滚屏，释放浏览器原生双指缩放与页面滚动。</td></tr>
+                <tr><td><code class="ic">showWidgetPanelOnPageStart</code></td><td><code class="ic">true</code> / <code class="ic">false</code></td><td>页面打开时是否默认隐藏小部件面板，等待用户点击按钮再展开。</td></tr>
+                <tr><td><code class="ic">buttonBar</code></td><td><code class="ic">true</code> / <code class="ic">false</code></td><td>控制是否彻底隐藏画布底部的撤销、重置、翻页与小部件按钮栏。</td></tr>
+                <tr><td><code class="ic">traceWidget</code></td><td><code class="ic">all</code> / <code class="ic">none</code> / 页码</td><td>开启轨迹小部件（Trace Widget，2026-11-19 起内置 <code class="ic">Construct Locus</code> 按钮，可在网页端直接对追踪对象构造点、直线、圆、多边形轨迹与包络线，并支持键盘及读屏操作）。</td></tr>
+                <tr><td><code class="ic">pageTraces</code> / <code class="ic">undoRedoTraces</code></td><td><code class="ic">true</code> / <code class="ic">false</code></td><td>切换页面后是否保留轨迹，以及是否将轨迹纳入撤销与重做历史栈。</td></tr>
+                <tr><td><code class="ic">labelWidget</code></td><td><code class="ic">all</code> / <code class="ic">none</code> / 页码</td><td>控制文本与标签小部件的显示页码（面板已更名为 Text Widget，键名保持兼容）。</td></tr>
+              </tbody>
+            </table>
+          </div>
+        `
+      },
+
+      "web-multipage": {
+        breadcrumb: "网页集成与进阶 › 多页联动与画布重置",
+        title: "多页联动与画布重置",
+        lead: "让网页正文根据多页草图的当前页码动态切换说明文字，通过正文超链接控制草图翻页，并在画布内挂载一键重置事件。",
+        html: `
+          <h2 class="doc-h2">1. 网页正文随草图翻页自动切换</h2>
+          <p class="doc-p">只要引入了小部件脚本且将说明区域与 <code class="ic">.sketch_canvas</code> 放在同一个 <code class="ic">.sketch_container</code> 容器内，给任意区块加上 <code class="ic">page_toggle p_2 p_3</code> 类名，该区块就会仅在用户切换到第 2 页或第 3 页时自动显示：</p>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>HTML · page_toggle 与 PAGENUM.gotoPage 双向联动</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="复制代码"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">&lt;div class="sketch_container"&gt;
+  &lt;div class="page_toggle p_1"&gt;
+    &lt;p&gt;第 1 页探究任务：拖动顶点观察垂心位置。&lt;a onclick="PAGENUM.gotoPage(this, 2);"&gt;进入第 2 页 →&lt;/a&gt;&lt;/p&gt;
+  &lt;/div&gt;
+  &lt;div class="page_toggle p_2 p_3"&gt;
+    &lt;p&gt;仅在第 2 页或第 3 页显示的进阶提示说明。&lt;/p&gt;
+  &lt;/div&gt;
+  &lt;div class="sketch_canvas" data-var="mysketch"&gt;&lt;/div&gt;
+&lt;/div&gt;</pre>
+          </div>
+
+          <h2 class="doc-h2">2. 在画布内部实现一键重置当前页</h2>
+          <p class="doc-p">在草图对象中放置一个标签为 <code class="ic">"Reset Sketch"</code> 的普通动作按钮，然后在宿主网页监听 <code class="ic">PressButton.WSP</code> 自定义事件并调用 <code class="ic">ctx.document.undo("all")</code>，即可一键将当前页回滚到初始状态（且保留重做历史）：</p>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>JavaScript · 监听按钮事件重置画布</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="复制代码"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre">&lt;script&gt;
+  $(function () {
+    $(".sketch_container").on("PressButton.WSP", function (ev, ctx) {
+      if (ctx.gobj.label === "Reset Sketch") {
+        ctx.document.undo("all");
+      }
+    });
+  });
+&lt;/script&gt;</pre>
+          </div>
+        `
+      },
+
+      "web-tools-a11y": {
+        breadcrumb: "网页集成与进阶 › 多边形工具与无障碍协议",
+        title: "多边形工具与无障碍协议",
+        lead: "了解自适应任意边数多边形工具的 repeat 标记与 toolRepeat 属性，以及利用隐藏动作按钮定制全键盘导航顺序与屏幕阅读器播报。",
+        html: `
+          <h2 class="doc-h2">1. 自适应任意边数多边形工具</h2>
+          <p class="doc-p">以三角形为原型构造变换、面积或周长自定义工具时，将随每个顶点或每条边重复出现的对象打上 <code class="ic">repeat</code> 标记（导出至 JSON 后自动写入 <code class="ic">"toolRepeat": true</code>），工具在网页端即可自动伸缩匹配任意边数的多边形，也支持逐顶点点击构建新多边形。</p>
+          <div class="table-box">
+            <table class="clean-table">
+              <thead>
+                <tr><th>工具类型</th><th>顶点标记</th><th>边标记</th><th>多边形内部</th><th>变换像对象</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>变换类工具</td><td>不标记</td><td><code class="ic">repeat</code></td><td><code class="ic">constructible1</code></td><td>像点与像边均标 <code class="ic">repeat</code></td></tr>
+                <tr><td>面积 / 周长工具</td><td>不标记</td><td><code class="ic">repeat</code></td><td><code class="ic">constructible1</code></td><td>—</td></tr>
+                <tr><td>逐顶点多边形工具</td><td><code class="ic">given1, given2, given3</code></td><td><code class="ic">repeat</code></td><td><code class="ic">constructible4</code></td><td>—</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 class="doc-h2">2. 全键盘与屏幕阅读器无障碍定制协议</h2>
+          <p class="doc-p">引擎原生支持 <code class="ic">Tab</code> 切换焦点、方向键按 1/10/100 像素微调自由点以及读屏软件朗读。若需手动规定焦点跳转顺序或指定变动时朗读的度量对象，只需在草图中添加一个隐藏的 <code class="ic">ActionButtonToggleHideShow</code> 按钮并使用以下保留标签名：</p>
+          <div class="table-box">
+            <table class="clean-table">
+              <thead>
+                <tr><th>隐藏按钮标签名</th><th>父对象列表含义</th><th>运行时效果</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code class="ic">WSP-TABS</code></td><td>需要被键盘访问的有序对象列表</td><td>替代默认构造顺序，限定 <code class="ic">Tab</code> 键严格按列表顺序在指定对象间跳转。</td></tr>
+                <tr><td><code class="ic">WSP-SAYS</code></td><td>度量、计算式或文本说明列表</td><td>拖动图形或动画运行时，仅按顺序朗读列表中发生变化的数值或说明。</td></tr>
+                <tr><td><code class="ic">WSP-ON-BUTTON-DOWN-SAYS</code></td><td>动作按钮 + 文本或度量对象</td><td>当任意父动作按钮被按下时，立即触发读屏软件朗读关联的文本与度量。</td></tr>
+                <tr><td><code class="ic">WSP-ON-BUTTON-UP-SAYS</code></td><td>动作按钮 + 文本或度量对象</td><td>当动作按钮弹起（例如动画结束停止）时，触发读屏软件朗读关联内容。</td></tr>
+              </tbody>
+            </table>
+          </div>
+        `
+      },
+
+      "ref-kinds": {
+        breadcrumb: "索引字典与沙盒 › 几何对象大类",
+        title: "几何对象大类",
+        lead: "从引擎运行时直接导出的全部几何对象大类，包含继承关系、内核代号与专有属性。",
+        html: `<div id="kindsTableMount"></div>`
+      },
+
+      "ref-constraints": {
+        breadcrumb: "索引字典与沙盒 › 几何约束字典",
+        title: "几何约束字典",
+        lead: "完整收录引擎注册的全部几何约束构造器（同步至 2026 年 11 月版本，含函数与轨迹交点 InterApproxPathStitchedPath_C），支持按分类或关键字实时过滤。",
+        html: `
+          <div class="hairline-callout" style="margin-top:0;">
+            <svg class="icon" style="margin-top:3px;"><use href="#ic-info"/></svg>
+            <div><strong>如何阅读字典条目</strong>：卡片标题即写入 JSON 的 <code class="ic">constraint</code> 值；右上角标签标明了可用的 <code class="ic">kind</code>；下方「父对象键」与「参数要求」给出了 <code class="ic">parents</code> 字典中必须严格填写的键名。</div>
+          </div>
+          <input type="text" class="dict-search-input" id="constraintFilterInput" placeholder="按约束名称、内核代号或描述实时过滤 (例如: InterApprox, Perpendicular, Rotate, Measure, Locus, Iterate)..." oninput="filterConstraintsList()" />
+          <div class="filter-pills-row" id="constraintCategoryPills"></div>
+          <div style="font-size:13.5px;color:var(--text-muted);margin-bottom:14px;" id="constraintCountStatus"></div>
+          <div id="constraintsListMount"></div>
+        `
+      },
+
+      "playground": {
+        breadcrumb: "索引字典与沙盒 › 在线交互沙盒",
+        title: "在线交互沙盒",
+        lead: "在左侧编写或修改 Web Sketch JSON，按 Ctrl + Enter 或点击运行渲染，即可在右侧实时拖拽红色自由点验证几何约束。",
+        html: `
+          <div class="pg-workbench">
+            <div class="pg-toolbar">
+              <div class="pg-toolbar-left">
+                <span class="pg-select-label">示例模板</span>
+                <select class="pg-select" id="pgPresetSelect" onchange="loadPlaygroundPreset(this.value)">
+                  <option value="parabola">抛物线与直线双交点</option>
+                  <option value="euclideanPure">三角形垂心、平行线与角平分线</option>
+                  <option value="euclidean">三角形角度与面积动态度量</option>
+                  <option value="equilateral">双圆交点构造等边三角形</option>
+                  <option value="iteration">双分支分形树迭代</option>
+                  <option value="minimal">最小骨架与线段长度</option>
+                </select>
+              </div>
+              <div class="pg-toolbar-right">
+                <button class="btn-outline-sm" onclick="formatPlaygroundJson()" style="padding:6px 12px;font-size:13.5px;">格式化</button>
+                <button class="btn-outline-sm" onclick="copyPlaygroundJson(this)" style="padding:6px 12px;font-size:13.5px;">复制 JSON</button>
+                <button class="btn-solid-sm" id="pgRunBtn" onclick="runPlaygroundSketch()" style="padding:6px 14px;font-size:13.5px;">
+                  <svg class="icon" style="width:14px;height:14px;"><use href="#ic-play"/></svg>
+                  <span>运行渲染</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="pg-split">
+              <div class="pg-editor-pane">
+                <div class="pg-pane-head">
+                  <span>JSON 源码</span>
+                  <span style="font-family:var(--font-mono);font-size:12px;">Ctrl + Enter 运行</span>
+                </div>
+                <textarea class="playground-textarea" id="playgroundTextarea" spellcheck="false" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();runPlaygroundSketch();}"></textarea>
+                <div class="pg-statusbar">
+                  <span id="playgroundStatus">就绪</span>
+                  <span id="playgroundCanvasMeta" style="font-family:var(--font-mono);"></span>
+                </div>
+              </div>
+
+              <div class="pg-stage-pane">
+                <div class="pg-pane-head" style="background:#F8F8F6;color:#52514E;">
+                  <span>实时交互画布（拖动红色顶点测试约束重算）</span>
+                  <span style="font-family:var(--font-mono);font-size:12px;">WSP</span>
+                </div>
+                <div class="pg-stage-canvas-wrap">
+                  <div id="liveWspMount"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `
+      },
+
+      "llm-spec": {
+        breadcrumb: "索引字典与沙盒 › Agent Skills",
+        title: "Agent Skills",
+        lead: "本页提供符合主流规范的标准 Agent Skills，安装后任意 AI 编程助手均可自动读取完整语法与实测避坑规则，零报错生成 Web Sketch JSON。",
+        html: `
+          <h2 class="doc-h2" style="margin-top:8px;">1. 安装方式</h2>
+          <p class="doc-p">下载并解压 <a href="web-sketchpad-json-skill.zip" download><code class="ic">web-sketchpad-json-skill.zip</code></a>，将整个 <code class="ic">web-sketchpad-json/</code> 文件夹放入你的 AI 助手技能目录即可自动生效（也可直接查看 <a href="skills/web-sketchpad-json/SKILL.md" target="_blank"><code class="ic">SKILL.md</code></a> 与 <a href="skills/web-sketchpad-json/references/wsp-schema.json" target="_blank"><code class="ic">references/wsp-schema.json</code></a>）：</p>
+          <div class="table-box">
+            <table class="clean-table">
+              <thead><tr><th>AI 编程助手</th><th>技能目录路径</th></tr></thead>
+              <tbody>
+                <tr><td>项目级通用（推荐）</td><td><code class="ic">.agents/skills/web-sketchpad-json/</code></td></tr>
+                <tr><td>Claude Code</td><td><code class="ic">~/.claude/skills/web-sketchpad-json/</code></td></tr>
+                <tr><td>Codex / Cursor / Antigravity</td><td><code class="ic">~/.codex/skills/</code> 或对应工作区 <code class="ic">skills/</code> 目录</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 class="doc-h2">2. 技能包目录清单</h2>
+          <div class="doc-code-card">
+            <div class="doc-code-bar"><span>web-sketchpad-json/</span></div>
+            <pre class="doc-code-pre">web-sketchpad-json/
+├── SKILL.md                      # 触发条件、核心规则、最小骨架与高频构造配方
+└── references/
+    └── wsp-schema.json           # 全部几何对象大类与约束构造器的完整运行时字典</pre>
+          </div>
+
+          <h2 class="doc-h2">3. SKILL.md 原文预览</h2>
+          <div class="doc-code-card">
+            <div class="doc-code-bar">
+              <span>skills/web-sketchpad-json/SKILL.md</span>
+              <button class="icon-btn" onclick="copyPreCode(this)" title="复制全部"><svg class="icon"><use href="#ic-copy"/></svg></button>
+            </div>
+            <pre class="doc-code-pre" id="llmPromptPre"></pre>
+          </div>
+        `
+      }
+    };
+
+    // =========================================================================
+    // View Switching
+    // =========================================================================
+    let currentPageId = "home";
+    let currentConstraintCategory = "ALL";
+
+    const PAGE_ORDER = [
+      "intro", "quickstart", "troubleshooting",
+      "architecture", "coordinates", "styles",
+      "guide-euclidean", "guide-shapes", "guide-measures",
+      "guide-functions", "guide-transforms", "guide-buttons",
+      "web-widgets", "web-multipage", "web-tools-a11y",
+      "ref-kinds", "ref-constraints", "playground", "llm-spec"
+    ];
+
+    function buildPagerHtml(pageId) {
+      const idx = PAGE_ORDER.indexOf(pageId);
+      if (idx === -1) return "";
+      const prevId = idx > 0 ? PAGE_ORDER[idx - 1] : null;
+      const nextId = idx < PAGE_ORDER.length - 1 ? PAGE_ORDER[idx + 1] : null;
+      const prevCard = prevId
+        ? `<div class="pager-card prev" onclick="openInteriorPage('${prevId}')"><span class="pager-dir">← 上一篇</span><span class="pager-title">${PAGES[prevId].title}</span></div>`
+        : `<div></div>`;
+      const nextCard = nextId
+        ? `<div class="pager-card next" onclick="openInteriorPage('${nextId}')"><span class="pager-dir">下一篇 →</span><span class="pager-title">${PAGES[nextId].title}</span></div>`
+        : `<div></div>`;
+      return `<div class="doc-pager">${prevCard}${nextCard}</div>`;
+    }
+
+    function openHomePortal() {
+      unmountLiveSketch("inlinePageLiveMount");
+      unmountLiveSketch("liveWspMount");
+      currentPageId = "home";
+      closeMobileDrawer();
+      document.body.classList.remove("mode-interior");
+      switchHeroCodeTab("live", document.querySelector(".code-tab-btn"));
+      if (window.location.hash) history.replaceState(null, "", window.location.pathname);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function openInteriorPage(pageId) {
+      unmountLiveSketch("heroLiveMount");
+      unmountLiveSketch("inlinePageLiveMount");
+      unmountLiveSketch("liveWspMount");
+      if (!PAGES[pageId]) pageId = "quickstart";
+      currentPageId = pageId;
+      closeMobileDrawer();
+      document.body.classList.add("mode-interior");
+
+      document.querySelectorAll(".docs-sidebar .sidebar-item").forEach(el => {
+        el.classList.toggle("active", el.getAttribute("data-page") === pageId);
+      });
+
+      const p = PAGES[pageId];
+      const demoHtml = p.demoPreset ? `
+        <div class="inline-live-demo">
+          <div class="inline-live-bar">
+            <span>${p.demoCaption || "用鼠标拖拽画布中的红色自由点验证动态约束"}</span>
+            <span style="font-family:var(--font-mono);font-size:12px;">Q4 2026</span>
+          </div>
+          <div class="inline-live-stage">
+            <div id="inlinePageLiveMount"></div>
+          </div>
+        </div>
+      ` : "";
+
+      const main = document.getElementById("docsMainArticle");
+      main.classList.toggle("is-playground", pageId === "playground");
+      main.innerHTML = `
+        <div class="docs-breadcrumb">${p.breadcrumb}</div>
+        <div class="docs-title-row">
+          <h1 class="docs-h1">${p.title}</h1>
+          <button class="copy-page-btn" onclick="copyCurrentPageMarkdown()" id="copyPageBtn">
+            <svg class="icon" style="width:15px;height:15px;"><use href="#ic-copy"/></svg>
+            <span>复制本页</span>
+          </button>
+        </div>
+        <div class="docs-lead">${p.lead}</div>
+        ${demoHtml}
+        <div id="docsBodyContent">${p.html}</div>
+        ${buildPagerHtml(pageId)}
+      `;
+
+      if (p.demoPreset && PRESET_SKETCHES[p.demoPreset]) {
+        mountLiveSketchTo("inlinePageLiveMount", "__INLINE_PAGE_SKETCH__", PRESET_SKETCHES[p.demoPreset]);
+      }
+      if (pageId === "ref-kinds") renderKindsReference();
+      if (pageId === "ref-constraints") initConstraintsExplorer();
+      if (pageId === "playground") loadPlaygroundPreset("parabola");
+      if (pageId === "llm-spec") populateLLMPromptPre();
+      if (window.location.hash !== "#" + pageId) history.replaceState(null, "", "#" + pageId);
+
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    // =========================================================================
+    // Kinds & Constraints Reference Renderers
+    // =========================================================================
+    function renderKindsReference() {
+      const mount = document.getElementById("kindsTableMount");
+      if (!window.WSP_RUNTIME_SCHEMA) return;
+      const kinds = Object.values(window.WSP_RUNTIME_SCHEMA.kinds);
+      const rows = kinds.map(k => `
+        <tr>
+          <td><code class="ic">${k.name}</code></td>
+          <td>${k.inherits ? `<code class="ic">${k.inherits}</code>` : "—"}</td>
+          <td>${k.gspKindRef ? `<code class="ic">${k.gspKindRef}</code>` : "—"}</td>
+          <td>${k.hasLabel ? "支持" : "—"}</td>
+          <td>${k.properties.map(p => `<code class="ic">${p}</code>`).join(", ") || "—"}</td>
+          <td>${k.description}</td>
+        </tr>
+      `).join("");
+      mount.innerHTML = `
+        <div class="table-box">
+          <table class="clean-table">
+            <thead>
+              <tr><th>类名</th><th>继承自</th><th>内核代号</th><th>标签</th><th>专有属性</th><th>说明</th></tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function categorizeConstraint(name) {
+      if (/^(Segment|Ray|Line|Perpendicular|Parallel|AngleBisector|Straight)$/.test(name)) return "直线与尺规线";
+      if (/^(Free|Midpoint|Intersection|InterApprox|PointOn|Plot|UnitPoint|PointTerminal)/.test(name)) return "点与交点定位";
+      if (/^(Circle|Arc|Polygon|AngleMarker|PathMarker)/.test(name)) return "圆、多边形与标记";
+      if (/^(Measurement|GeometricSlope|LinearEquation|QuadraticEquation|Multimeasure)/.test(name)) return "几何度量与方程";
+      if (/^(Calculation|Function|Parametric|Locus|GeomLocus|DriveChain)/.test(name)) return "函数、计算与轨迹";
+      if (/^(Reflect|GlideReflect|Rotate|Dilate|Translate|Transform|CustomTransformed)/.test(name)) return "几何变换";
+      if (/^(Iterate|UserTabulation|CompositeText|Pegged|Colorize)/.test(name)) return "迭代、表格与文本";
+      if (/^(Axis|CoordSys)/.test(name)) return "坐标轴与坐标系";
+      if (/^(ActionButton|Picture)/.test(name)) return "按钮与图像";
+      return "基础类与其它";
+    }
+
+    function initConstraintsExplorer() {
+      const categories = [
+        "ALL", "点与交点定位", "直线与尺规线", "圆、多边形与标记",
+        "几何度量与方程", "函数、计算与轨迹", "几何变换",
+        "迭代、表格与文本", "坐标轴与坐标系", "按钮与图像"
+      ];
+      const pillBar = document.getElementById("constraintCategoryPills");
+      if (!pillBar) return;
+      pillBar.classList.add("has-slider");
+      pillBar.innerHTML = `<div class="pill-slider-bg" aria-hidden="true"></div>` + categories.map(cat => `
+        <button class="cat-pill ${cat === currentConstraintCategory ? 'active' : ''}" data-cat="${cat}"
+          onclick="selectConstraintCategory('${cat}')">
+          ${cat === 'ALL' ? '全部' : cat}
+        </button>
+      `).join("");
+      requestAnimationFrame(() => syncConstraintPillSlider(true));
+      filterConstraintsList();
+    }
+
+    function filterConstraintsList() {
+      const q = (document.getElementById("constraintFilterInput")?.value || "").trim().toLowerCase();
+      const listEl = document.getElementById("constraintsListMount");
+      const statusEl = document.getElementById("constraintCountStatus");
+      if (!window.WSP_RUNTIME_SCHEMA) return;
+
+      const all = Object.values(window.WSP_RUNTIME_SCHEMA.constraints);
+      const filtered = all.filter(c => {
+        const cat = categorizeConstraint(c.name);
+        if (currentConstraintCategory !== "ALL" && cat !== currentConstraintCategory) return false;
+        if (!q) return true;
+        return (
+          c.name.toLowerCase().includes(q) ||
+          (c.gspRef && c.gspRef.toLowerCase().includes(q)) ||
+          (c.description && c.description.toLowerCase().includes(q)) ||
+          c.kinds.join(" ").toLowerCase().includes(q)
+        );
+      });
+
+      statusEl.textContent = `当前显示 ${filtered.length} / ${all.length} 项约束定义`;
+
+      listEl.innerHTML = filtered.map(c => {
+        const parentKeys = Object.entries(c.parentsSpec || {}).filter(([k, v]) => !v.suppressed);
+        const bapKeys = c.bapEdges ? Object.entries(c.bapEdges).map(([k, v]) => `${k} (${v.edgeType})`) : [];
+        return `
+          <div class="c-item-card">
+            <div class="c-item-head">
+              <div>
+                <span class="c-item-title">${c.name}</span>
+                ${c.inherits ? `<span style="font-size:13px;color:var(--text-muted);margin-left:8px;">继承自 <code class="ic">${c.inherits}</code></span>` : ""}
+              </div>
+              <div class="trait-pills">
+                ${c.kinds.map(k => `<span class="trait-pill">kind: ${k}</span>`).join("")}
+                ${c.gspRef ? `<span class="trait-pill">${c.gspRef}</span>` : ""}
+              </div>
+            </div>
+            <div style="font-size:14.5px;color:var(--text-secondary);margin-bottom:8px;">
+              ${c.description || "引擎内部约束基类。"}
+            </div>
+            ${c.existenceRule ? `<div style="font-size:13px;color:var(--text-muted);margin-bottom:4px;">存在条件: ${c.existenceRule}</div>` : ""}
+            ${bapKeys.length ? `<div style="font-size:13.5px;color:var(--text-secondary);margin-bottom:4px;">父对象键: <code class="ic">${bapKeys.join(", ")}</code></div>` : ""}
+            ${parentKeys.length ? `<div style="font-size:13.5px;color:var(--text-secondary);">参数要求: ${parentKeys.map(([pk, pv]) => `<code class="ic">"${pk}"</code> (${pv.kind || pv.genus || "GObject"})`).join(" · ")}</div>` : ""}
+          </div>
+        `;
+      }).join("");
+    }
+
+    // =========================================================================
+    // Live Playground Runner
+    // =========================================================================
+    function formatPlaygroundJson() {
+      const ta = document.getElementById("playgroundTextarea");
+      const status = document.getElementById("playgroundStatus");
+      if (!ta) return;
+      try {
+        ta.value = JSON.stringify(JSON.parse(ta.value), null, 2);
+        status.textContent = "已格式化 JSON。";
+      } catch (err) {
+        status.textContent = "JSON 语法错误，无法格式化：" + err.message;
+      }
+    }
+
+    function copyPlaygroundJson(btn) {
+      const ta = document.getElementById("playgroundTextarea");
+      if (!ta) return;
+      navigator.clipboard.writeText(ta.value).then(() => {
+        const orig = btn.textContent;
+        btn.textContent = "已复制";
+        setTimeout(() => btn.textContent = orig, 1400);
+      });
+    }
+
+    function loadPlaygroundPreset(presetKey) {
+      const ta = document.getElementById("playgroundTextarea");
+      if (!ta) return;
+      const sel = document.getElementById("pgPresetSelect"); if (sel && sel.value !== presetKey) sel.value = presetKey;
+      ta.value = JSON.stringify(PRESET_SKETCHES[presetKey] || PRESET_SKETCHES.parabola, null, 2);
+      runPlaygroundSketch();
+    }
+
+    function runPlaygroundSketch() {
+      const ta = document.getElementById("playgroundTextarea");
+      const status = document.getElementById("playgroundStatus");
+      const metaEl = document.getElementById("playgroundCanvasMeta");
+      const mount = document.getElementById("liveWspMount");
+      if (!ta || !mount) return;
+
+      if (!window.jQuery || !jQuery.fn || !jQuery.fn.WSP) {
+        mount.innerHTML = `<div class="engine-missing-note">正在从官方源加载 Web Sketchpad 引擎，请稍候…</div>`;
+        if (window.whenWspEngineReady) {
+          window.whenWspEngineReady(function () {
+            if (document.getElementById("liveWspMount")) runPlaygroundSketch();
+          });
+        }
+        return;
+      }
+
+      try {
+        const parsed = JSON.parse(ta.value);
+        if (window.GSP && GSP.Sketch && parsed.pages && parsed.pages[0]) {
+          const check = GSP.Sketch.supportCheck(parsed.pages[0]);
+          metaEl.textContent = `${check.supportedCount}/${check.count}`;
+        }
+        window.__LIVE_PLAYGROUND_SKETCH__ = parsed;
+        unmountLiveSketch("liveWspMount");
+        mount.innerHTML = `<div class="sketch_canvas" id="liveSketchNode" data-var="__LIVE_PLAYGROUND_SKETCH__"></div>`;
+        jQuery("#liveSketchNode").WSP("loadSketch");
+        fitLiveSketchToStage("liveWspMount", parsed);
+        requestAnimationFrame(() => fitLiveSketchToStage("liveWspMount", parsed));
+        status.textContent = "已成功渲染三层交互式画布。";
+        const runBtn = document.getElementById("pgRunBtn");
+        if (runBtn) {
+          clearTimeout(runBtn.__fbTimer);
+          runBtn.classList.remove("is-run-err");
+          runBtn.classList.add("is-run-ok");
+          runBtn.__fbTimer = setTimeout(() => runBtn.classList.remove("is-run-ok"), 900);
+        }
+      } catch (err) {
+        status.textContent = "JSON 解析错误: " + err.message;
+        const runBtn = document.getElementById("pgRunBtn");
+        if (runBtn) {
+          clearTimeout(runBtn.__fbTimer);
+          runBtn.classList.remove("is-run-ok");
+          runBtn.classList.add("is-run-err");
+          runBtn.__fbTimer = setTimeout(() => runBtn.classList.remove("is-run-err"), 900);
+        }
+      }
+    }
+
+    // =========================================================================
+    // Helpers, Theme & Ctrl+K Search
+    // =========================================================================
+    function copyPreCode(btn) {
+      const pre = btn.closest(".doc-code-card").querySelector("pre");
+      if (!pre) return;
+      navigator.clipboard.writeText(pre.innerText).then(() => {
+        clearTimeout(btn.__copyTimer);
+        btn.classList.add("is-copied");
+        btn.innerHTML = '<svg class="icon"><use href="#ic-check"/></svg>';
+        btn.setAttribute("data-tip", "已复制!");
+        btn.__copyTimer = setTimeout(() => {
+          btn.classList.remove("is-copied");
+          btn.innerHTML = '<svg class="icon"><use href="#ic-copy"/></svg>';
+          btn.setAttribute("data-tip", "复制代码");
+        }, 1500);
+      });
+    }
+
+    function copyCurrentPageMarkdown() {
+      const main = document.getElementById("docsMainArticle");
+      const btn = document.getElementById("copyPageBtn");
+      navigator.clipboard.writeText(main.innerText).then(() => {
+        clearTimeout(btn.__copyTimer);
+        if (!btn.__origHtml) btn.__origHtml = btn.innerHTML;
+        btn.classList.add("is-copied");
+        btn.innerHTML = `<svg class="icon" style="width:14px;height:14px"><use href="#ic-check"/></svg><span>已复制</span>`;
+        btn.__copyTimer = setTimeout(() => {
+          btn.classList.remove("is-copied");
+          btn.innerHTML = btn.__origHtml;
+        }, 1500);
+      });
+    }
+
+    const SKILL_MD_CONTENT = "---\nname: web-sketchpad-json\ndescription: Author, debug, and validate Web Sketchpad (WSP v4.8.0 / Q4 2026) declarative JSON geometric constructions, interactive HTML5 embeds, and dynamic math sketches. Activate whenever creating or editing Web Sketch JSON, plotting functions/intersections, building fractal iterations, or integrating WSP widgets and multi-page controls in HTML.\n---\n\n# Web Sketchpad JSON Construction Skill (Q4 2026)\n\nUse this skill to write valid, zero-template Web Sketchpad JSON documents and embed them cleanly in HTML pages without relying on desktop Sketchpad export templates.\n\n## 1. Core Construction Rules\n\n1. **Topological dependency order**: Define objects in `pages[0].objects` strictly from independent parents to dependent children (Free points/parameters → Lines/Circles → Intersections/Polygons → Measures/Loci/Buttons). Every ID referenced in `parents` must already exist.\n2. **Coordinate & unit conventions**:\n   - Canvas origin `(0, 0)` is at the **top-left**; `+x` goes right, `+y` goes **down**.\n   - `1 inch = 72 px`, `1 cm = 72 / 2.54 ≈ 28.3464567 px`.\n   - `Rotate.angle` is always in **radians** (`Math.PI = 180°`). Although positive angles are mathematically counterclockwise, remember the canvas origin is top-left with **`+y` pointing down**—double-check the sign of `±π/2` when rotating polygons outward from an edge.\n3. **Four mandatory validation gates (preventing silent blank canvas)**:\n   - `metadata[\"wsp-version\"]` must be `\"4.8.0\"` (or `\"4.9.0\"`, major version `4`).\n   - `pages[i].preferences.text.textTypes` must exist (at least `{}`).\n   - `pages[i].preferences.colorableComponents.Background` must exist (e.g. `{\"color\": \"white\"}`).\n   - Use `data-var=\"mySketch\"` on `<div class=\"sketch_canvas\">` for local `file://` compatibility.\n4. **Hard-won runtime pitfalls (blind-test verified)**:\n   - **Labels are hidden by default**: Setting `\"label\": \"A\"` alone does NOT display point/segment labels on canvas—always include `\"style\": {\"label\": {\"showLabel\": true}}`.\n   - **Measurements MUST use `kind: \"Measure\"` + `nameOrigin`**: Use `\"kind\": \"Measure\"` (NEVER `\"Expression\"`) for `MeasurementLength`, `MeasurementAngle`, `MeasurementArea`, `MeasurementValueOfPointOnPath`, etc., and set `\"style\": {\"nameOrigin\": \"namedFromTemplate\"}` (for auto labels like `m∠BAC = 55.4°`) or `\"nameOrigin\": \"namedFromLabel\"` with `\"label\"` (otherwise it renders blank `Expression N =`).\n   - **Editable Parameters & Calculations MUST set `nameOrigin: \"namedFromLabel\"`**: Define an editable parameter as `\"kind\": \"Expression\", \"genus\": \"ScalarMeasure\", \"constraint\": \"Calculation\", \"parents\": {}, \"expressionType\": \"UniMeasure_ExprType\", \"expression\": \"0.45\", \"label\": \"a\", \"style\": {\"nameOrigin\": \"namedFromLabel\", \"precision\": 2}` (do NOT put `value` at top level on `constraint: \"Free\"`, which evaluates to `undefined`). For derived `Calculation` objects, also include `\"style\": {\"nameOrigin\": \"namedFromLabel\"}` with `\"label\"` so it displays your label instead of `Expression N`.\n   - **`GeomLocus` requires full `DriveChain` parents + `driverDomain`**: Besides `\"driverObject\"`, `\"drivenObject\"`, and `\"domainObject\"`, you MUST list every intermediate object along the drive chain (including `\"drivenObject\"` itself) as numbered keys `\"0\"`, `\"1\"`, … in `parents`, and explicitly set `\"isDiscrete\": false` and `\"driverDomain\": {\"low\": 0, \"high\": 1}` (missing chain throws `isDiscrete` TypeError; missing `driverDomain` draws nothing).\n   - **Axes block dragging unless locked**: Always set `\"selectable\": false` in `style` on `Axis` and `CoordSys` objects so free points remain draggable.\n   - **Infinite dashed/dotted lines cause GPU drag lag**: For infinite lines (`Line`, `Perpendicular`, `Parallel`), prefer light-colored thin `\"line-style\": \"solid\"` strokes over dense `\"dotted\"` lines.\n   - **AngleBisector vertex**: In `parents: {\"A\", \"B\", \"C\"}`, `\"B\"` (the middle key) is the vertex of `∠ABC`.\n   - **Readable labels for teaching sketches**: Give parameters and calculations clear, self-explanatory `label` strings with units (e.g., `\"Horizontal Angle α (rad)\"` or `\"a/sin(A)\"`) instead of bare single letters, and group them in a dedicated top-left margin.\n   - **Clean unmount in SPAs**: Before replacing a `.sketch_canvas` container, call `jQuery(node).data(\"document\").stop()` to stop background `JobScheduler` loops and release listeners.\n\n## 2. Minimal Valid Document Skeleton\n\n```json\n{\n  \"metadata\": { \"width\": 640, \"height\": 360, \"wsp-version\": \"4.8.0\", \"start-page\": \"1\" },\n  \"resources\": { \"fontList\": [\"\\\"Arial\\\", sans-serif\", \"\\\"Times New Roman\\\", serif\"] },\n  \"pages\": [{\n    \"metadata\": { \"title\": \"Page 1\", \"id\": \"1\", \"sketchRect\": { \"top\": 0, \"left\": 0, \"bottom\": 360, \"right\": 640 } },\n    \"preferences\": {\n      \"units\": { \"length\": \"cm\", \"angle\": \"deg\" },\n      \"precision\": { \"length\": 2, \"angle\": 2, \"scalar\": 2 },\n      \"colorableComponents\": { \"Background\": { \"color\": \"white\" } },\n      \"text\": { \"mathItalicization\": true, \"textTypes\": {} }\n    },\n    \"objects\": {}\n  }]\n}\n```\n\n## 3. High-Frequency Object Recipes\n\n- **Free Point (with visible label)**: `{\"kind\":\"Point\",\"genus\":\"Point\",\"constraint\":\"Free\",\"geom\":{\"loc\":{\"x\":160,\"y\":200}},\"label\":\"A\",\"style\":{\"color\":\"#d63628\",\"label\":{\"showLabel\":true}}}`\n- **Segment / Perpendicular / Parallel / Bisector**:\n  - `Segment`: `kind:\"Straight\", genus:\"Segment\", constraint:\"Segment\", parents:{\"p0\":\"1\",\"p1\":\"2\"}`\n  - `Perpendicular`: `kind:\"Straight\", genus:\"Perpendicular\", constraint:\"Perpendicular\", parents:{\"p0\":\"3\",\"line\":\"5\"}`\n  - `Parallel`: `kind:\"Straight\", genus:\"Parallel\", constraint:\"Parallel\", parents:{\"p0\":\"3\",\"line\":\"5\"}`\n  - `AngleBisector`: `kind:\"Straight\", genus:\"Bisector\", constraint:\"AngleBisector\", parents:{\"A\":\"2\",\"B\":\"1\",\"C\":\"3\"}`\n- **Intersections**:\n  - Line–Line: `constraint:\"Intersection\", parents:{\"line0\":\"5\",\"line1\":\"9\"}`\n  - Circle–Line/Circle: `constraint:\"Intersection1\"` / `\"Intersection2\"`, `parents:{\"circle\":\"3\",\"obj\":\"4\"}`\n  - **FunctionPlot / GeomLocus Intersection (Q4 2026)**: `constraint:\"InterApproxPathStitchedPath_C\", parents:{\"0\":\"9\",\"1\":\"12\"}` (declare multiple points with identical `parents` to auto-assign the 1st, 2nd, … crossings; tapping crossings in Web Sketchpad is enabled by default since Nov 19, 2026—disable via `window.GSPConfig.Intersections = { options: { tapPlotIntersections: false } }`).\n- **Circles, Arcs & Polygons**:\n  - `CircleFromTwoPoints` (`parents:{\"p0\",\"p1\"}`), `CircleByRadius` (`parents:{\"p0\",\"radius\"}`)\n  - `ArcOnCircle` (`parents:{\"circle\",\"p0\",\"p1\"}`), `Arc3Points` (`parents:{\"p0\",\"p1\",\"p2\"}`), `ArcSector` (`kind:\"ArcInterior\", parents:{\"arc\"}`)\n  - `PolygonFromPoints` (`kind:\"Polygon\", genus:\"Triangle\", parents:{\"0\":\"1\",\"1\":\"2\",\"2\":\"3\"}`)\n- **Measures, Parameters & Calculations**:\n  - `MeasurementLength`: `kind:\"Measure\", genus:\"DistanceMeasure\", constraint:\"MeasurementLength\", parents:{\"path\":\"3\"}, geom:{\"loc\":{\"x\":24,\"y\":36}}, style:{\"font-size\":14,\"precision\":2,\"nameOrigin\":\"namedFromTemplate\"}`\n  - `MeasurementAngle`: `kind:\"Measure\", genus:\"AngleMeasure\", constraint:\"MeasurementAngle\", parents:{\"p0\":\"1\",\"p1\":\"2\",\"p2\":\"3\"}, geom:{\"loc\":{\"x\":24,\"y\":64}}, style:{\"font-size\":14,\"precision\":1,\"nameOrigin\":\"namedFromTemplate\"}`\n  - `MeasurementArea`: `kind:\"Measure\", genus:\"AreaMeasure\", constraint:\"MeasurementArea\", parents:{\"shape\":\"8\"}, geom:{\"loc\":{\"x\":24,\"y\":92}}, style:{\"font-size\":14,\"precision\":2,\"nameOrigin\":\"namedFromTemplate\"}`\n  - `Calculation`: `kind:\"Expression\", genus:\"ScalarMeasure\", constraint:\"Calculation\", parents:{\"0\":\"13\",\"1\":\"14\"}, expressionType:\"UniMeasure_ExprType\", expression:\"@0/@1\", label:\"Ratio\", geom:{\"loc\":{\"x\":24,\"y\":120}}, style:{\"font-size\":14,\"precision\":2,\"nameOrigin\":\"namedFromLabel\"}`\n  - Editable Parameter: `kind:\"Expression\", genus:\"ScalarMeasure\", constraint:\"Calculation\", parents:{}, expressionType:\"UniMeasure_ExprType\", expression:\"0.45\", label:\"a\", geom:{\"loc\":{\"x\":24,\"y\":36}}, style:{\"font-size\":14,\"precision\":2,\"nameOrigin\":\"namedFromLabel\"}`\n- **Coordinate System, Functions, Dynamic Plotting & Loci**:\n  - Chain: `OriginPoint` (`Free`) → `HorizontalUnitPoint` (`parents:{\"origin\"}`, `value:44`) → `AxisInternalDist` (`horizontal`, `style.selectable:false`) → `UnitPointInternalSquare` → `AxisInternalDist` (`vertical`, `style.selectable:false`) → `CoordSys` (`parents:{\"axisX\",\"axisY\"}`, `style.selectable:false`).\n  - `FunctionPlot`: `kind:\"Sampler\", parents:{\"function\",\"coordSys\"}, numSamples:180, driverDomain:{\"low\":-6,\"high\":6}`\n  - Dynamic Coordinate Point: `PlotMarkedXMarkedY` (`parents:{\"coordSys\",\"coordX\",\"coordY\"}`)\n  - Locus: `GeomLocus` (`kind:\"Sampler\", genus:\"PointLocus\", constraint:\"GeomLocus\", parents:{\"driverObject\":\"5\",\"drivenObject\":\"10\",\"domainObject\":\"3\",\"0\":\"6\",\"1\":\"7\",\"2\":\"8\",\"3\":\"9\",\"4\":\"10\"}, numSamples:180, isDiscrete:false, driverDomain:{\"low\":0,\"high\":1}`)\n- **Transforms & 2-Branch Fractals**:\n  - `Reflect` (`source, mirror`), `Rotate` (`source, center`, `angle` in rad), `RotateMeasureAngle` (`source, center, angle`), `DilateMeasureFactor` (`source, center, measure`), `TranslateVector` (`source, p0, p1`).\n  - 2-Branch Fractal Tree: `IterateMap` with `parents:{\"preimage0\":\"1\",\"preimage1\":\"2\",\"map0image0\":\"2\",\"map0image1\":\"5\",\"map1image0\":\"2\",\"map1image1\":\"6\",\"0\":\"3\"}` + `IterateImage` (`source, map`).\n- **Action Buttons & Host HTML Integration**:\n  - `ActionButtonAnimate`: `kind:\"Button\", genus:\"Action\", constraint:\"ActionButtonAnimate\", parents:{\"0\":\"9\"}, label:\"Animate\", messages:[\"Animate\"], animationStates:[{\"rate\":0.4,\"timeInterval\":0,\"repeat\":true,\"motionType\":\"both\"}], geom:{\"loc\":{\"x\":24,\"y\":140}}` (note: `genus` MUST be `\"Action\"`, NOT `\"Button\"`, and `label` is required; to animate an angle/parameter smoothly, animate a `PointOnPath` slider and read it via `MeasurementValueOfPointOnPath` with BOTH `parents:{\"point\":\"...\",\"path\":\"...\"}`).\n  - Also available: `ActionButtonToggleHideShow`, `ActionButtonMove` (pairs of `[point, target]` in `parents`), `ActionButtonPresentSimultaneously`.\n  - Host page prefs: `WSP.PREF.setWebPagePrefs([...])`; Trace Widget (`traceWidget`) now includes a `Construct Locus` button for constructing point/line/circle/polygon loci and envelopes directly in the browser; multi-page DOM sync: `<div class=\"page_toggle p_2\">` and `PAGENUM.gotoPage(this, 2)`; in-sketch reset via `PressButton.WSP` + `ctx.document.undo(\"all\")`.\n  - Accessibility hidden `Hide/Show` buttons: `WSP-TABS`, `WSP-SAYS`, `WSP-ON-BUTTON-DOWN-SAYS`, `WSP-ON-BUTTON-UP-SAYS`.\n\n## 4. Standalone Interactive HTML Wrapper\n\n- Output **pure `.json`** when the user wants data for further editing or uploading to the official Web Sketchpad Tool Library (`https://sineofthetimes.org/fc/tools/library`, Utility Menu → Upload).\n- Output a **single self-contained `.html` file** when the user wants an interactive math sketch they can double-click and drag immediately in any browser:\n\n```html\n<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\" />\n  <title>Web Sketchpad Interactive Construction<\/title>\n  <!-- Load official non-commercial runtime directly, or point to local engine/ for offline personal study -->\n  <script src=\"https://sineofthetimes.org/includes/v4.6/js/jquery-2.1.0.js\"><\/script>\n  <script src=\"https://sineofthetimes.org/includes/v4.6/js/wsp.js\"><\/script>\n  <script src=\"https://sineofthetimes.org/includes/v4.6/js/wsp-runner.js\"><\/script>\n  <style>.sketch_canvas { display: inline-block; border: 1px solid #e5e7eb; }<\/style>\n<\/head>\n<body>\n  <div class=\"sketch_canvas\" data-var=\"mySketch\"><\/div>\n  <script>\n    window.mySketch = { /* paste valid Web Sketch JSON here */ };\n  <\/script>\n<\/body>\n<\/html>\n```\n\n> **Licensing note**: Never bundle or redistribute proprietary Web Sketchpad runtime scripts (`wsp.js`, `wsp-runner.js`, `widgets.js`) in public repositories or shared archives; load them from the official host or keep local copies strictly for private offline study.\n\n## 5. Full Schema Reference\n\nWhen you need exact `parents` keys, `kinds`, inheritance, or existence rules for any of the 21 concrete object kinds and 155 registered constraints, read `references/wsp-schema.json` inside this skill folder.\n";
+
+    function populateLLMPromptPre() {
+      const pre = document.getElementById("llmPromptPre");
+      if (!pre) return;
+      pre.textContent = SKILL_MD_CONTENT;
+    }
+
+    function switchLanguage(targetFile) {
+      const hash = currentPageId && currentPageId !== "home" ? "#" + currentPageId : "";
+      const isHttp = window.location.protocol === "http:" || window.location.protocol === "https:";
+      const target = isHttp ? (targetFile === "index.html" ? "/" : "/" + targetFile.replace(/\.html$/, "")) : targetFile;
+      window.location.href = target + hash;
+    }
+
+    function applyTheme(mode) {
+      document.documentElement.setAttribute("data-theme", mode);
+      const useEl = document.getElementById("themeIconUse");
+      if (useEl) useEl.innerHTML = `<use href="${mode === 'dark' ? '#ic-sun' : '#ic-moon'}"/>`;
+    }
+
+    function toggleTheme() {
+      const next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+      applyTheme(next);
+      try { localStorage.setItem("wsp_docs_theme", next); } catch (e) {}
+    }
+
+    function toggleMobileDrawer() {
+      const sb = document.getElementById("docsSidebar");
+      const mask = document.getElementById("mobileDrawerMask");
+      if (!sb || !mask) return;
+      const open = !sb.classList.contains("mobile-open");
+      sb.classList.toggle("mobile-open", open);
+      mask.classList.toggle("open", open);
+    }
+
+    function closeMobileDrawer() {
+      const sb = document.getElementById("docsSidebar");
+      const mask = document.getElementById("mobileDrawerMask");
+      if (sb) sb.classList.remove("mobile-open");
+      if (mask) mask.classList.remove("open");
+    }
+
+    function openSearchModal() {
+      document.getElementById("searchModal").classList.add("open");
+      const inp = document.getElementById("globalSearchInput");
+      inp.value = "";
+      renderGlobalSearch("");
+      setTimeout(() => inp.focus(), 40);
+    }
+
+    function closeSearchModal() {
+      document.getElementById("searchModal").classList.remove("open");
+    }
+
+    function renderGlobalSearch(query) {
+      const box = document.getElementById("globalSearchResults");
+      const q = query.trim().toLowerCase();
+      let items = [];
+
+      for (const [pid, pdata] of Object.entries(PAGES)) {
+        const plainBody = (pdata.html || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+        const hitTitle = !q || pdata.title.toLowerCase().includes(q) || pdata.lead.toLowerCase().includes(q);
+        const bodyIdx = q ? plainBody.toLowerCase().indexOf(q) : -1;
+        if (hitTitle || bodyIdx !== -1) {
+          let subText = pdata.breadcrumb;
+          if (!hitTitle && bodyIdx !== -1) {
+            const start = Math.max(0, bodyIdx - 18);
+            const snippet = plainBody.slice(start, start + 64).trim();
+            subText = pdata.breadcrumb + " · …" + snippet + "…";
+          }
+          items.push({
+            title: pdata.title,
+            sub: subText,
+            action: () => { closeSearchModal(); openInteriorPage(pid); }
+          });
+        }
+      }
+
+      if (window.WSP_RUNTIME_SCHEMA && q) {
+        for (const c of Object.values(window.WSP_RUNTIME_SCHEMA.constraints)) {
+          if (c.name.toLowerCase().includes(q) || (c.description && c.description.toLowerCase().includes(q)) || (c.gspRef && c.gspRef.toLowerCase().includes(q))) {
+            items.push({
+              title: c.name,
+              sub: `约束 · 适用种类: ${c.kinds.join("/") || "通用"}`,
+              action: () => {
+                closeSearchModal();
+                currentConstraintCategory = "ALL";
+                openInteriorPage("ref-constraints");
+                const inp = document.getElementById("constraintFilterInput");
+                if (inp) { inp.value = c.name; filterConstraintsList(); }
+              }
+            });
+          }
+        }
+      }
+
+      box.innerHTML = items.slice(0, 18).map((it, idx) => `
+        <div class="modal-row" onclick="window.__SEARCH_ACT__[${idx}]()">
+          <div>
+            <div style="font-size:15px;font-weight:500;color:var(--text-primary);">${it.title}</div>
+            <div style="font-size:13px;color:var(--text-muted);">${it.sub}</div>
+          </div>
+          <span style="font-size:13px;color:var(--text-muted);">↵</span>
+        </div>
+      `).join("") || `<div style="padding:18px;text-align:center;color:var(--text-muted);font-size:14px;">未找到匹配结果</div>`;
+      window.__SEARCH_ACT__ = items.slice(0, 18).map(it => it.action);
+    }
+
+    window.addEventListener("keydown", (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        openSearchModal();
+      } else if (e.key === "Escape") {
+        closeSearchModal();
+        closeMobileDrawer();
+      }
+    });
+
+    window.addEventListener("DOMContentLoaded", () => {
+      try {
+        const saved = localStorage.getItem("wsp_docs_theme");
+        if (saved === "dark" || saved === "light") applyTheme(saved);
+      } catch (e) {}
+      const hashPage = window.location.hash ? window.location.hash.slice(1) : "";
+      if (hashPage && PAGES[hashPage]) {
+        openInteriorPage(hashPage);
+      } else {
+        openHomePortal();
+      }
+    });
+  
+    // =========================================================================
+    // Motion Studies Micro-Interactions (Morph Tooltip + Sliding Pill + Feedback)
+    // =========================================================================
+    function syncConstraintPillSlider(instant) {
+      const pillBar = document.getElementById("constraintCategoryPills");
+      if (!pillBar) return;
+      const slider = pillBar.querySelector(".pill-slider-bg");
+      const active = pillBar.querySelector(".cat-pill.active");
+      if (!slider || !active) return;
+      if (instant) slider.style.transition = "none";
+      slider.style.width = active.offsetWidth + "px";
+      slider.style.height = active.offsetHeight + "px";
+      slider.style.transform = `translate3d(${active.offsetLeft}px, ${active.offsetTop}px, 0)`;
+      slider.style.opacity = "1";
+      if (instant) {
+        slider.getBoundingClientRect();
+        slider.style.transition = "";
+      }
+    }
+
+    function selectConstraintCategory(cat) {
+      currentConstraintCategory = cat;
+      const pillBar = document.getElementById("constraintCategoryPills");
+      if (pillBar) {
+        pillBar.querySelectorAll(".cat-pill").forEach(btn => {
+          btn.classList.toggle("active", btn.dataset.cat === cat);
+        });
+        syncConstraintPillSlider(false);
+      }
+      filterConstraintsList();
+    }
+
+    (function initMorphTooltip() {
+      let tipEl = null;
+      let hideTimer = null;
+      let activeTarget = null;
+      const SEL = ".header-right [title], .header-right [data-tip], .doc-code-card .icon-btn[title], .doc-code-card .icon-btn[data-tip]";
+
+      function ensureTip() {
+        if (!tipEl) {
+          tipEl = document.createElement("div");
+          tipEl.className = "morph-tooltip";
+          tipEl.setAttribute("role", "tooltip");
+          document.body.appendChild(tipEl);
+        }
+        return tipEl;
+      }
+
+      function showFor(el) {
+        if (window.matchMedia && window.matchMedia("(hover: none)").matches) return;
+        const raw = el.getAttribute("data-tip") || el.getAttribute("title");
+        if (!raw) return;
+        if (el.hasAttribute("title")) {
+          el.setAttribute("data-tip", raw);
+          el.removeAttribute("title");
+        }
+        clearTimeout(hideTimer);
+        const tip = ensureTip();
+        const wasVisible = tip.classList.contains("visible");
+        tip.textContent = raw;
+        const rect = el.getBoundingClientRect();
+        const tw = tip.offsetWidth;
+        const th = tip.offsetHeight;
+        let x = rect.left + rect.width / 2 - tw / 2;
+        x = Math.max(8, Math.min(window.innerWidth - tw - 8, x));
+        let y = rect.bottom + 8;
+        if (y + th > window.innerHeight - 8) y = rect.top - th - 8;
+        if (!wasVisible) {
+          tip.style.transition = "none";
+          tip.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y - 4)}px, 0) scale(0.94)`;
+          tip.getBoundingClientRect();
+          tip.style.transition = "";
+        }
+        tip.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0) scale(1)`;
+        tip.classList.add("visible");
+        activeTarget = el;
+      }
+
+      function scheduleHide() {
+        clearTimeout(hideTimer);
+        hideTimer = setTimeout(() => {
+          if (tipEl) tipEl.classList.remove("visible");
+          activeTarget = null;
+        }, 90);
+      }
+
+      document.addEventListener("mouseover", (e) => {
+        const el = e.target.closest && e.target.closest(SEL);
+        if (el && el !== activeTarget) showFor(el);
+      });
+      document.addEventListener("mouseout", (e) => {
+        if (!activeTarget) return;
+        const to = e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest(SEL);
+        if (!to) scheduleHide();
+      });
+      document.addEventListener("pointerdown", () => {
+        if (tipEl) tipEl.classList.remove("visible");
+        activeTarget = null;
+      });
+      window.addEventListener("resize", () => syncConstraintPillSlider(true));
+    })();
+
+  </script>
+</body>
+</html>

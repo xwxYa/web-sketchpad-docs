@@ -1,0 +1,5 @@
+# Proprietary Web Sketchpad runtime files (Copyright KCP Technologies / McGraw-Hill Education)
+# Never commit or redistribute proprietary engine files in this repository.
+engine/
+.DS_Store
+Thumbs.db
